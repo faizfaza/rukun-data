@@ -1,0 +1,106 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+
+/*
+ * Tema Rukun Data — token mengikuti DESIGN.md §4, §5, §6, §8, §10.
+ * Aturan di bawah sengaja ditulis di luar layer Tailwind Filament agar
+ * menang atas utility bawaan tanpa perlu !important.
+ */
+:root {
+    --rukun-navy: #0f2a4a;
+    --rukun-navy-dark: #0a1f38;
+    --rukun-teal: #0f766e;
+    --rukun-teal-light: #2dd4bf;
+    --rukun-bg: #f4f6f9;
+}
+
+/* DESIGN.md §4: latar area konten. */
+.fi-body {
+    background-color: var(--rukun-bg);
+}
+
+/* DESIGN.md §6/§11.1: sidebar navy, kepala lebih gelap, menu aktif teal terang. */
+.fi-sidebar {
+    background-color: var(--rukun-navy);
+    border-inline-end: 1px solid var(--rukun-navy-dark);
+}
+
+.fi-sidebar-header {
+    background-color: var(--rukun-navy-dark);
+}
+
+.fi-sidebar-header .fi-logo {
+    color: #ffffff;
+}
+
+.fi-sidebar-nav .fi-sidebar-group-label {
+    color: #94a3b8;
+}
+
+.fi-sidebar-item-label {
+    color: #dbe4f0;
+}
+
+.fi-sidebar-item-btn > .fi-icon {
+    color: #94a3b8;
+}
+
+.fi-sidebar-item.fi-sidebar-item-has-url > .fi-sidebar-item-btn:hover {
+    background-color: rgb(255 255 255 / 0.06);
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn {
+    background-color: rgb(45 212 191 / 0.14);
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-icon,
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-sidebar-item-label {
+    color: var(--rukun-teal-light);
+}
+
+.fi-sidebar-footer {
+    border-color: rgb(255 255 255 / 0.12);
+}
+
+/* DESIGN.md §8: sudut 8px untuk kartu, isian, dan panel; 6px untuk tombol. */
+.fi-section,
+.fi-ta,
+.fi-input-wrp,
+.fi-simple-main {
+    border-radius: 8px;
+}
+
+.fi-btn {
+    border-radius: 6px;
+}
+
+/* DESIGN.md §8: tombol utama berlatar teal dengan teks putih. Filament memilih
+   gaya tonal (latar terang) untuk rona terang seperti teal, jadi warnanya
+   dipatok eksplisit. Tombol sekunder (outlined) tidak terpengaruh. */
+.fi-btn.fi-color-primary:not(.fi-outlined) {
+    background-color: var(--rukun-teal);
+    color: #ffffff;
+}
+
+.fi-btn.fi-color-primary:not(.fi-outlined):hover {
+    background-color: #115e59;
+    color: #ffffff;
+}
+
+.fi-btn.fi-color-primary:not(.fi-outlined) > .fi-icon {
+    color: #ffffff;
+}
+
+/* DESIGN.md §10.1: fokus keyboard selalu terlihat, garis teal 2px. */
+:focus-visible {
+    outline: 2px solid var(--rukun-teal-light);
+    outline-offset: 2px;
+}
+
+/* DESIGN.md §5: angka NIK dan No KK memakai angka tabular agar digit sejajar. */
+.fi-ta-cell,
+.fi-in-entry-content {
+    font-variant-numeric: tabular-nums;
+}

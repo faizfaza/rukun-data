@@ -19,10 +19,16 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 
-// Fase 3: halaman utama penjelajahan wilayah. Titik awal mengikuti peran
-// (superadmin: negara, admin_rw: RW-nya, admin_rt: RT-nya). Node selain RT
-// menampilkan tabel anak; node RT menampilkan daftar KK di RT itu.
+// Halaman utama penjelajahan data. Pengguna memilih wilayah bertahap lewat
+// daftar + kotak cari: provinsi → kabupaten/kota → kecamatan → desa → turunan
+// desa (dusun opsional / RW) → RW → RT. Daftar keluarga baru tampil setelah
+// rantai sampai level RT.
+//
+// Sengaja tidak memakai komponen form Filament yang jumlahnya dinamis: select
+// yang ditambahkan lewat morph Livewire tidak meneruskan perubahan ke server.
+// Di sini seluruh langkah dikendalikan Livewire (wire:click), jadi andal.
 class JelajahWilayah extends Page implements HasTable
 {
     use InteractsWithTable;
@@ -41,158 +47,47 @@ class JelajahWilayah extends Page implements HasTable
 
     protected string $view = 'filament.pages.jelajah-wilayah';
 
-    public ?Wilayah $wilayah = null;
+    // Pilihan bertahap: p0 = pilihan pertama (mis. provinsi), p1 = berikutnya.
+    /** @var array<string, int|string|null> */
+    public array $pilihan = [];
 
-    // Rute memakai parameter opsional agar bisa diklik antar node.
+    // Kata kunci untuk daftar langkah yang sedang aktif.
+    public string $cari = '';
+
+    protected ?Wilayah $titikAwalCache = null;
+
+    /** @var array<int, Collection<int, Wilayah>> */
+    protected array $cacheAnak = [];
+
+    /** @var list<Wilayah>|null */
+    protected ?array $cacheTangga = null;
+
+    protected ?string $cacheTanggaKunci = null;
+
+    // Rute memakai parameter opsional agar node tertentu bisa ditautkan langsung.
     public static function getRoutePath(Panel $panel): string
     {
         return '/jelajah/{wilayah?}';
     }
 
+    // Tautan langsung (mis. /admin/jelajah/12) mengisi rantai sampai node itu.
+    // Node di luar subtree pengguna → 404.
     public function mount(?Wilayah $wilayah = null): void
     {
-        $this->wilayah = $this->resolveNode($wilayah);
-    }
+        $start = $this->titikAwal(auth()->user());
 
-    // Pertahanan kedua saat Livewire menghidrasi ulang: node harus tetap di
-    // dalam subtree pengguna walau payload diubah.
-    public function hydrate(): void
-    {
-        abort_unless($this->diDalamSubtree($this->wilayah, $this->titikAwal(auth()->user())), 404);
-    }
+        if ($wilayah !== null) {
+            abort_unless($this->diDalamSubtree($wilayah, $start), 404);
 
-    // Breadcrumb bawaan tata letak dimatikan; rantai digambar sendiri di view.
-    public function getBreadcrumbs(): array
-    {
-        return [];
+            $this->pilihan = $this->pilihanDariNode($wilayah, $start);
+        }
     }
 
     public function table(Table $table): Table
     {
-        if ($this->wilayah?->level === 'rt') {
-            return $this->tabelKeluarga($table);
-        }
-
-        return $this->tabelAnak($table);
-    }
-
-    protected function getHeaderActions(): array
-    {
-        $actions = [
-            Action::make('cari')
-                ->label('Cari No KK / NIK')
-                ->icon('heroicon-o-magnifying-glass')
-                ->form([
-                    TextInput::make('nomor')
-                        ->label('No KK atau NIK persis')
-                        ->required()
-                        ->length(16)
-                        ->rule('regex:/^[0-9]{16}$/')
-                        ->helperText('Masukkan nomor lengkap 16 digit.'),
-                ])
-                ->action(fn (array $data) => $this->cariPersis($data['nomor'])),
-        ];
-
-        // Fase 3.3: tombol tambah hanya bila policy mengizinkan, membawa RT
-        // ini sebagai id_wilayah terpilih (dikunci di form).
-        if ($this->bolehTambahKeluarga()) {
-            $actions[] = Action::make('tambahKeluarga')
-                ->label('Tambah keluarga')
-                ->icon('heroicon-o-plus')
-                ->url(fn (): string => KeluargaResource::getUrl('create', ['id_wilayah' => $this->wilayah->id]));
-        }
-
-        return $actions;
-    }
-
-    public function bolehTambahKeluarga(): bool
-    {
-        return $this->wilayah?->level === 'rt'
-            && (bool) auth()->user()?->can('create', Keluarga::class);
-    }
-
-    // ---- Breadcrumb & ringkasan untuk view ----------------------------------
-
-    /** @return list<array{nama: string, url: string, aktif: bool}> */
-    public function breadcrumbsRantai(): array
-    {
-        $start = $this->titikAwal(auth()->user());
-
-        return $this->wilayah->ancestors()
-            ->push($this->wilayah)
-            ->filter(fn (Wilayah $w): bool => str_starts_with((string) $w->path, (string) $start->path))
-            ->map(fn (Wilayah $w): array => [
-                'nama' => $w->nama,
-                'url' => static::getUrl(['wilayah' => $w->id]),
-                'aktif' => $w->is($this->wilayah),
-            ])
-            ->values()
-            ->all();
-    }
-
-    public function labelLevel(): string
-    {
-        return Wilayah::labelLevel((string) $this->wilayah?->level);
-    }
-
-    /** @return array{anak: int, kk: int, anggota: int} */
-    public function ringkasan(): array
-    {
-        $rtIds = $this->rtDalamSubtreeNode();
-
-        $kk = $rtIds === [] ? 0 : Keluarga::whereIn('id_wilayah', $rtIds)->count();
-        $anggota = $kk === 0 ? 0 : Anggota::whereIn(
-            'id_keluarga',
-            Keluarga::whereIn('id_wilayah', $rtIds)->select('id'),
-        )->count();
-
-        return [
-            'anak' => $this->wilayah?->children()->count() ?? 0,
-            'kk' => $kk,
-            'anggota' => $anggota,
-        ];
-    }
-
-    // ---- Tabel anak (node selain RT) ----------------------------------------
-
-    protected function tabelAnak(Table $table): Table
-    {
         return $table
-            ->query(fn (): Builder => Wilayah::query()->where('parent_id', $this->wilayah->id))
-            ->columns([
-                TextColumn::make('nama')
-                    ->label('Nama')
-                    ->searchable()
-                    ->sortable(),
-                TextColumn::make('level')
-                    ->label('Level')
-                    ->badge()
-                    ->formatStateUsing(fn (string $state): string => Wilayah::labelLevel($state)),
-                TextColumn::make('children_count')
-                    ->label('Anak langsung')
-                    ->counts('children')
-                    ->alignCenter(),
-                TextColumn::make('kk_keturunan')
-                    ->label('KK aktif (keturunan)')
-                    ->getStateUsing(fn (Wilayah $record): int => $this->kkKeturunan()[$record->id] ?? 0)
-                    ->alignCenter(),
-            ])
-            ->defaultSort('path')
-            // Fase 3.2: klik baris masuk ke node anak.
-            ->recordUrl(fn (Wilayah $record): string => static::getUrl(['wilayah' => $record->id]))
-            ->paginated([25, 50, 100])
-            ->defaultPaginationPageOption(25)
-            ->striped()
-            ->emptyStateHeading('Tidak ada wilayah turunan')
-            ->emptyStateDescription('Node ini adalah ujung rantai wilayah.');
-    }
-
-    // ---- Tabel KK (node RT) -------------------------------------------------
-
-    protected function tabelKeluarga(Table $table): Table
-    {
-        return $table
-            ->query(fn (): Builder => Keluarga::query()->where('id_wilayah', $this->wilayah->id))
+            // Query dievaluasi saat render, supaya RT terpilih terbaru dipakai.
+            ->query(fn (): Builder => Keluarga::query()->where('id_wilayah', $this->nodeTerpilihRt()?->id ?? -1))
             ->columns([
                 TextColumn::make('no_kk_masked')
                     ->label('No KK')
@@ -214,7 +109,155 @@ class JelajahWilayah extends Page implements HasTable
             ->emptyStateDescription('Pilih Tambah keluarga untuk memulai.');
     }
 
-    // ---- Pencarian persis ---------------------------------------------------
+    protected function getHeaderActions(): array
+    {
+        $actions = [
+            Action::make('cari')
+                ->label('Cari No KK / NIK')
+                ->icon('heroicon-o-magnifying-glass')
+                ->form([
+                    TextInput::make('nomor')
+                        ->label('No KK atau NIK persis')
+                        ->required()
+                        ->length(16)
+                        ->rule('regex:/^[0-9]{16}$/')
+                        ->helperText('Masukkan nomor lengkap 16 digit.'),
+                ])
+                ->action(fn (array $data) => $this->cariPersis($data['nomor'])),
+        ];
+
+        if ($this->bolehTambahKeluarga()) {
+            $actions[] = Action::make('tambahKeluarga')
+                ->label('Tambah keluarga')
+                ->icon('heroicon-o-plus')
+                ->url(fn (): string => KeluargaResource::getUrl('create', ['id_wilayah' => $this->nodeTerpilihRt()->id]));
+        }
+
+        return $actions;
+    }
+
+    // ---- Aksi pemilih -------------------------------------------------------
+
+    // Memilih satu opsi pada langkah ke-$indeks (indeks langkah aktif).
+    public function pilih(int $indeks, int $id): void
+    {
+        $langkah = $this->langkahSaatIni();
+
+        abort_if($langkah === null || $langkah['indeks'] !== $indeks, 404);
+
+        $opsi = $this->anakDari($langkah['induk'])->firstWhere('id', $id);
+
+        abort_if($opsi === null, 404);
+
+        $this->pilihan["p{$indeks}"] = $opsi->id;
+        $this->pangkas($indeks + 1);
+        $this->cari = '';
+        $this->resetTable();
+    }
+
+    // Kembali ke node pada posisi rantai $posisi (0 = titik awal).
+    public function kembaliKe(int $posisi): void
+    {
+        $this->pangkas($posisi);
+        $this->cari = '';
+        $this->resetTable();
+    }
+
+    // ---- Data untuk view ----------------------------------------------------
+
+    /** @return list<Wilayah> */
+    public function rantai(): array
+    {
+        return $this->tangga();
+    }
+
+    // Langkah yang sedang menunggu dipilih; null bila sudah selesai (RT/buntu).
+    /** @return array{indeks: int, induk: Wilayah, label: string}|null */
+    public function langkahSaatIni(): ?array
+    {
+        $tangga = $this->tangga();
+        $indeks = count($tangga) - 1;
+        $node = $tangga[$indeks];
+        $anak = $this->anakDari($node);
+
+        if ($node->level === 'rt' || $anak->isEmpty()) {
+            return null;
+        }
+
+        return [
+            'indeks' => $indeks,
+            'induk' => $node,
+            'label' => $this->labelLangkah($anak),
+        ];
+    }
+
+    // Opsi langkah aktif, disaring oleh kotak cari (nama atau kode).
+    /** @return Collection<int, Wilayah> */
+    public function opsiSaatIni(): Collection
+    {
+        $langkah = $this->langkahSaatIni();
+
+        if ($langkah === null) {
+            return new Collection;
+        }
+
+        $kata = mb_strtolower(trim($this->cari));
+
+        return $this->anakDari($langkah['induk'])
+            ->when($kata !== '', fn (Collection $anak): Collection => $anak->filter(
+                fn (Wilayah $w): bool => str_contains(mb_strtolower($w->nama.' '.$w->kode), $kata),
+            ))
+            ->values();
+    }
+
+    public function nodeTerpilihRt(): ?Wilayah
+    {
+        $node = $this->nodeAktif();
+
+        return $node->level === 'rt' ? $node : null;
+    }
+
+    public function buntu(): bool
+    {
+        $node = $this->nodeAktif();
+
+        return $node->level !== 'rt' && $this->anakDari($node)->isEmpty();
+    }
+
+    public function nodeAktif(): Wilayah
+    {
+        $tangga = $this->tangga();
+
+        return $tangga[count($tangga) - 1];
+    }
+
+    public function bolehTambahKeluarga(): bool
+    {
+        return $this->nodeTerpilihRt() !== null
+            && (bool) auth()->user()?->can('create', Keluarga::class);
+    }
+
+    public function ringkasanKk(): string
+    {
+        $rt = $this->nodeTerpilihRt();
+
+        if ($rt === null) {
+            return '';
+        }
+
+        $keluarga = Keluarga::where('id_wilayah', $rt->id)->count();
+        $anggota = Anggota::whereIn(
+            'id_keluarga',
+            Keluarga::where('id_wilayah', $rt->id)->select('id'),
+        )->count();
+
+        return $keluarga.' keluarga, '.$anggota.' anggota aktif.';
+    }
+
+    public function labelUntuk(Wilayah $wilayah): string
+    {
+        return Wilayah::labelLevel((string) $wilayah->level);
+    }
 
     public function cariPersis(string $nomor): void
     {
@@ -246,83 +289,115 @@ class JelajahWilayah extends Page implements HasTable
 
     // ---- Pembantu -----------------------------------------------------------
 
-    private function resolveNode(?Wilayah $wilayah): Wilayah
+    // Rantai node terpilih dari titik awal; nilai pilihan yang sudah tidak sah
+    // (mis. sisa pilihan sebelumnya) otomatis diabaikan.
+    /** @return list<Wilayah> */
+    protected function tangga(): array
     {
-        $start = $this->titikAwal(auth()->user());
+        $kunci = json_encode($this->pilihan) ?: '[]';
 
-        if ($wilayah === null) {
-            return $start;
+        if ($this->cacheTangga !== null && $this->cacheTanggaKunci === $kunci) {
+            return $this->cacheTangga;
         }
 
-        // Fase 3.7: node di luar subtree pengguna → 404.
-        abort_unless($this->diDalamSubtree($wilayah, $start), 404);
+        $tangga = [$this->titikAwal(auth()->user())];
 
-        return $wilayah;
+        for ($indeks = 0; ; $indeks++) {
+            $dipilih = $this->pilihan["p{$indeks}"] ?? null;
+
+            if (blank($dipilih)) {
+                break;
+            }
+
+            $node = $this->anakDari($tangga[$indeks])->firstWhere('id', (int) $dipilih);
+
+            if ($node === null) {
+                break;
+            }
+
+            $tangga[] = $node;
+
+            if ($node->level === 'rt' || $this->anakDari($node)->isEmpty()) {
+                break;
+            }
+        }
+
+        $this->cacheTanggaKunci = $kunci;
+
+        return $this->cacheTangga = $tangga;
     }
 
-    private function titikAwal(?User $user): Wilayah
+    /** @return Collection<int, Wilayah> */
+    protected function anakDari(Wilayah $node): Collection
     {
+        return $this->cacheAnak[$node->id] ??= $node->children()->orderBy('nama')->get();
+    }
+
+    // Label langkah mengikuti level anak bila seragam; kalau campur (mis. desa
+    // punya dusun dan RW), pakai sebutan umum.
+    /** @param Collection<int, Wilayah> $anak */
+    protected function labelLangkah(Collection $anak): string
+    {
+        $level = $anak->pluck('level')->unique();
+
+        return $level->count() === 1
+            ? Wilayah::labelLevel((string) $level->first())
+            : 'Wilayah turunan';
+    }
+
+    // Menghapus pilihan mulai indeks $dari (dan semua yang lebih dalam).
+    protected function pangkas(int $dari): void
+    {
+        foreach (array_keys($this->pilihan) as $kunci) {
+            if (preg_match('/^p(\d+)$/', (string) $kunci, $cocok) && (int) $cocok[1] >= $dari) {
+                unset($this->pilihan[$kunci]);
+            }
+        }
+
+        $this->cacheTangga = null;
+        $this->cacheTanggaKunci = null;
+    }
+
+    /** @return array<string, int> */
+    protected function pilihanDariNode(Wilayah $node, Wilayah $start): array
+    {
+        $rantai = $node->ancestors()
+            ->push($node)
+            ->filter(fn (Wilayah $w): bool => str_starts_with((string) $w->path, (string) $start->path) && ! $w->is($start))
+            ->values();
+
+        $pilihan = [];
+
+        foreach ($rantai as $indeks => $w) {
+            $pilihan["p{$indeks}"] = $w->id;
+        }
+
+        return $pilihan;
+    }
+
+    protected function titikAwal(?User $user): Wilayah
+    {
+        if ($this->titikAwalCache !== null) {
+            return $this->titikAwalCache;
+        }
+
         if ($user !== null && $user->isSuperadmin()) {
             $negara = Wilayah::where('level', 'negara')->orderBy('path')->first();
 
             abort_if($negara === null, 404, 'Wilayah akar (negara) belum ada.');
 
-            return $negara;
+            return $this->titikAwalCache = $negara;
         }
 
         $wilayah = $user?->wilayah;
 
         abort_if($wilayah === null, 403);
 
-        return $wilayah;
+        return $this->titikAwalCache = $wilayah;
     }
 
-    private function diDalamSubtree(?Wilayah $node, Wilayah $start): bool
+    protected function diDalamSubtree(?Wilayah $node, Wilayah $start): bool
     {
         return $node !== null && str_starts_with((string) $node->path, (string) $start->path);
     }
-
-    /** @return list<int> */
-    private function rtDalamSubtreeNode(): array
-    {
-        if ($this->wilayah === null) {
-            return [];
-        }
-
-        return Wilayah::where('level', 'rt')
-            ->where('path', 'like', $this->wilayah->path.'%')
-            ->pluck('id')
-            ->all();
-    }
-
-    // Jumlah KK aktif per anak, dihitung sekali (bukan per baris) agar tidak N+1.
-    /** @return array<int, int> */
-    public function kkKeturunan(): array
-    {
-        if ($this->cacheKk !== null) {
-            return $this->cacheKk;
-        }
-
-        $rt = Wilayah::where('level', 'rt')
-            ->where('path', 'like', $this->wilayah->path.'%')
-            ->get(['id', 'path']);
-
-        $perRt = Keluarga::whereIn('id_wilayah', $rt->pluck('id'))
-            ->selectRaw('id_wilayah, count(*) as jumlah')
-            ->groupBy('id_wilayah')
-            ->pluck('jumlah', 'id_wilayah');
-
-        $peta = [];
-
-        foreach ($this->wilayah->children()->get() as $anak) {
-            $peta[$anak->id] = $rt
-                ->filter(fn (Wilayah $r): bool => str_starts_with((string) $r->path, (string) $anak->path))
-                ->sum(fn (Wilayah $r): int => (int) ($perRt[$r->id] ?? 0));
-        }
-
-        return $this->cacheKk = $peta;
-    }
-
-    /** @var array<int, int>|null */
-    protected ?array $cacheKk = null;
 }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Pages\JelajahWilayah;
 use App\Filament\Resources\AnggotaResource\Pages;
 use App\Models\Anggota;
 use App\Models\RefAgama;
@@ -25,6 +26,7 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 // PRD F5/F7: profil individu + pencarian NIK persis. Entri anggota hanya
 // lewat halaman Keluarga (F4), sehingga resource ini tanpa halaman create.
@@ -36,6 +38,10 @@ class AnggotaResource extends Resource
     protected static ?string $slug = 'anggota';
 
     protected static ?string $navigationLabel = 'Anggota';
+
+    // Fase 3.6: daftar datar anggota tidak boleh ada; halaman view/edit tetap
+    // dipakai dari tree (Keluarga → anggota).
+    protected static bool $shouldRegisterNavigation = false;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Pendataan';
 
@@ -153,10 +159,16 @@ class AnggotaResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListAnggota::route('/'),
             'view' => Pages\ViewAnggota::route('/{record}'),
             'edit' => Pages\EditAnggota::route('/{record}/edit'),
         ];
+    }
+
+    // Tidak ada halaman index (daftar datar anggota dihapus); tautan "kembali"
+    // pada tata letak halaman diarahkan ke Jelajah Wilayah.
+    public static function getIndexUrl(array $parameters = [], bool $isAbsolute = true, ?string $panel = null, ?Model $tenant = null, bool $shouldGuessMissingParameters = false): string
+    {
+        return JelajahWilayah::getUrl();
     }
 
     // Nama dicari lewat indeks butir (semua kata harus cocok), NIK lewat hash

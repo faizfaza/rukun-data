@@ -23,7 +23,7 @@ class UsernameLoginTest extends TestCase
     public function test_login_username_berhasil(): void
     {
         $w = $this->seedDasar();
-        $this->makeUser('petugas-rt1', 'rt_rw', $w['rt1']->id);
+        $this->makeUser('petugas-rt1', 'admin_rt', $w['rt1']->id);
 
         Livewire::test(Login::class)
             ->fillForm(['username' => 'petugas-rt1', 'password' => 'password'])
@@ -37,7 +37,7 @@ class UsernameLoginTest extends TestCase
     public function test_login_gagal_ditolak(): void
     {
         $w = $this->seedDasar();
-        $this->makeUser('petugas-rt1', 'rt_rw', $w['rt1']->id);
+        $this->makeUser('petugas-rt1', 'admin_rt', $w['rt1']->id);
 
         Livewire::test(Login::class)
             ->fillForm(['username' => 'petugas-rt1', 'password' => 'salah'])

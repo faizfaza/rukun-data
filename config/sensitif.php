@@ -5,4 +5,8 @@
 // konfigurasi terdengar (exception) alih-alih diam memakai kunci lemah.
 return [
     'hmac_key' => env('FIELD_HMAC_KEY'),
+
+    // Keputusan 5: admin_rw boleh melihat data pribadi penuh bila saklar ini
+    // dinyalakan. Default false agar data pribadi tersamarkan bagi admin_rw.
+    'rw_lihat_penuh' => (bool) env('RW_LIHAT_PENUH', false),
 ];

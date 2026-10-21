@@ -4,8 +4,8 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\Auth\Login;
 use App\Filament\Widgets\JenisKelaminChart;
-use App\Filament\Widgets\KeluargaPerRtChart;
 use App\Filament\Widgets\KelompokUmurChart;
+use App\Filament\Widgets\KeluargaPerRtChart;
 use App\Filament\Widgets\PekerjaanChart;
 use App\Filament\Widgets\PendidikanChart;
 use App\Filament\Widgets\RingkasanWidget;

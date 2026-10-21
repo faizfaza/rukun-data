@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\AnggotaResource\Pages;
 
 use App\Filament\Resources\AnggotaResource;
+use App\Models\Anggota;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Infolists\Components\TextEntry;
@@ -22,23 +23,34 @@ class ViewAnggota extends ViewRecord
                 // DESIGN.md §7.4: keterangan privasi pada data yang tampil penuh.
                 ->description('Data pribadi, jangan dibagikan di luar keperluan pendataan.')
                 ->schema([
-                TextEntry::make('nik')->label('NIK'),
-                TextEntry::make('nama_lengkap')->label('Nama lengkap'),
-                TextEntry::make('tempat_lahir')->label('Tempat lahir'),
-                TextEntry::make('tanggal_lahir')->label('Tanggal lahir')->date('d M Y'),
-                TextEntry::make('jenis_kelamin')->label('Jenis kelamin'),
-                TextEntry::make('status_kawin')->label('Status kawin'),
-                TextEntry::make('agama.nama')->label('Agama'),
-                TextEntry::make('pendidikan.nama')->label('Pendidikan'),
-                TextEntry::make('pekerjaan.nama')->label('Pekerjaan'),
-                TextEntry::make('hubungan.nama')->label('Hubungan dalam keluarga'),
-                TextEntry::make('nama_ayah')->label('Nama ayah'),
-                TextEntry::make('nama_ibu')->label('Nama ibu'),
-                TextEntry::make('penghasilan_bulanan')->label('Penghasilan/bulan (Rp)'),
-            ])->columns(3),
+                    // Keputusan 5/2.4: NIK tersamarkan untuk peran tanpa hak penuh.
+                    TextEntry::make('nik')
+                        ->label('NIK')
+                        ->icon(fn (): ?string => auth()->user()?->bolehLihatDataPenuh() ? null : 'heroicon-m-lock-closed')
+                        ->formatStateUsing(fn (?string $state, Anggota $record): ?string => auth()->user()?->bolehLihatDataPenuh()
+                            ? $state
+                            : $record->nik_masked),
+                    TextEntry::make('nama_lengkap')->label('Nama lengkap'),
+                    TextEntry::make('tempat_lahir')->label('Tempat lahir'),
+                    TextEntry::make('tanggal_lahir')->label('Tanggal lahir')->date('d M Y'),
+                    TextEntry::make('jenis_kelamin')->label('Jenis kelamin'),
+                    TextEntry::make('status_kawin')->label('Status kawin'),
+                    TextEntry::make('agama.nama')->label('Agama'),
+                    TextEntry::make('pendidikan.nama')->label('Pendidikan'),
+                    TextEntry::make('pekerjaan.nama')->label('Pekerjaan'),
+                    TextEntry::make('hubungan.nama')->label('Hubungan dalam keluarga'),
+                    TextEntry::make('nama_ayah')->label('Nama ayah'),
+                    TextEntry::make('nama_ibu')->label('Nama ibu'),
+                    TextEntry::make('penghasilan_bulanan')->label('Penghasilan/bulan (Rp)'),
+                ])->columns(3),
 
             Section::make('Keluarga')->schema([
-                TextEntry::make('keluarga.no_kk')->label('No KK'),
+                TextEntry::make('keluarga.no_kk')
+                    ->label('No KK')
+                    ->icon(fn (): ?string => auth()->user()?->bolehLihatDataPenuh() ? null : 'heroicon-m-lock-closed')
+                    ->formatStateUsing(fn (?string $state, Anggota $record): ?string => auth()->user()?->bolehLihatDataPenuh()
+                        ? $state
+                        : $record->keluarga?->no_kk_masked),
                 TextEntry::make('keluarga.wilayah.nama')->label('RT'),
                 TextEntry::make('keluarga.alamat')->label('Alamat')->columnSpanFull(),
                 TextEntry::make('keluarga.kode_pos')->label('Kode pos'),

@@ -21,7 +21,7 @@ class DuplicateAndRestoreTest extends TestCase
     public function test_no_kk_ganda_ditolak(): void
     {
         $w = $this->seedDasar();
-        $admin = $this->makeUser('admin', 'admin', null);
+        $admin = $this->makeUser('admin', 'superadmin', null);
 
         $this->makeKeluarga($w['rt1']->id, '1111111111111111', [
             ['nik' => '1111111111111111', 'hubungan' => 1],
@@ -37,7 +37,7 @@ class DuplicateAndRestoreTest extends TestCase
     public function test_input_ulang_data_terhapus_menemukan_baris_lama(): void
     {
         $w = $this->seedDasar();
-        $admin = $this->makeUser('admin', 'admin', null);
+        $admin = $this->makeUser('admin', 'superadmin', null);
 
         $lama = $this->makeKeluarga($w['rt1']->id, '1111111111111111', [
             ['nik' => '1111111111111111', 'hubungan' => 1],
@@ -60,7 +60,7 @@ class DuplicateAndRestoreTest extends TestCase
     public function test_simpan_gagal_rollback_seluruhnya(): void
     {
         $w = $this->seedDasar();
-        $admin = $this->makeUser('admin', 'admin', null);
+        $admin = $this->makeUser('admin', 'superadmin', null);
 
         try {
             DB::transaction(function () use ($w, $admin) {

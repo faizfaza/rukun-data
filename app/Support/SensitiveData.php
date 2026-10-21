@@ -64,7 +64,7 @@ final class SensitiveData
         $normalized = preg_replace('/[^\p{L}\p{N}]+/u', ' ', mb_strtolower($value)) ?? '';
 
         $tokens = array_map(
-            fn (string $word): string => static::hash('nama:'.$word),
+            fn (string $word): string => self::hash('nama:'.$word),
             explode(' ', $normalized),
         );
 

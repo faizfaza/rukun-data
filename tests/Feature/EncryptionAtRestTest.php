@@ -19,7 +19,7 @@ class EncryptionAtRestTest extends TestCase
     public function test_kolom_sensitif_tersimpan_terenkripsi(): void
     {
         $w = $this->seedDasar();
-        $admin = $this->makeUser('admin', 'admin', null);
+        $admin = $this->makeUser('admin', 'superadmin', null);
 
         $this->actingAs($admin);
         $this->makeKeluarga($w['rt1']->id, '6371010101000001', [
@@ -41,7 +41,7 @@ class EncryptionAtRestTest extends TestCase
     public function test_audit_log_tidak_menyimpan_nilai_sensitif(): void
     {
         $w = $this->seedDasar();
-        $admin = $this->makeUser('admin', 'admin', null);
+        $admin = $this->makeUser('admin', 'superadmin', null);
 
         $this->actingAs($admin);
         $this->makeKeluarga($w['rt1']->id, '6371010101000001', [

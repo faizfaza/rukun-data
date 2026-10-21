@@ -12,11 +12,12 @@ use App\Models\User;
 use App\Models\Wilayah;
 use Illuminate\Support\Facades\Hash;
 
-// Fixture bersama: ref, pohon wilayah (1 desa, 1 RW, 2 RT), dan pembuat
+// Fixture bersama: ref, pohon wilayah lengkap (negara -> provinsi ->
+// kabupaten_kota -> kecamatan -> desa -> rw -> rt1/rt2), dan pembuat
 // keluarga/anggota minimal. NIK/No KK fiktif khusus pengujian.
 trait FixturesRukunData
 {
-    /** @return array{desa: Wilayah, rt1: Wilayah, rt2: Wilayah} */
+    /** @return array<string, Wilayah> */
     protected function seedDasar(): array
     {
         foreach (['Islam', 'Kristen'] as $nama) {
@@ -35,12 +36,16 @@ trait FixturesRukunData
             RefHubungan::create(['nama' => $nama]);
         }
 
-        $desa = Wilayah::create(['kode' => 'T.1', 'nama' => 'Desa Uji', 'level' => 'desa']);
-        $rw = Wilayah::create(['kode' => 'T.1.1', 'nama' => 'RW 001', 'level' => 'rw', 'parent_id' => $desa->id]);
-        $rt1 = Wilayah::create(['kode' => 'T.1.1.1', 'nama' => 'RT 001', 'level' => 'rt', 'parent_id' => $rw->id]);
-        $rt2 = Wilayah::create(['kode' => 'T.1.1.2', 'nama' => 'RT 002', 'level' => 'rt', 'parent_id' => $rw->id]);
+        $negara = Wilayah::create(['kode' => 'T', 'nama' => 'Negara Uji', 'level' => 'negara']);
+        $provinsi = Wilayah::create(['kode' => 'T.1', 'nama' => 'Provinsi Uji', 'level' => 'provinsi', 'parent_id' => $negara->id]);
+        $kabupaten = Wilayah::create(['kode' => 'T.1.1', 'nama' => 'Kabupaten Uji', 'level' => 'kabupaten_kota', 'parent_id' => $provinsi->id]);
+        $kecamatan = Wilayah::create(['kode' => 'T.1.1.1', 'nama' => 'Kecamatan Uji', 'level' => 'kecamatan', 'parent_id' => $kabupaten->id]);
+        $desa = Wilayah::create(['kode' => 'T.1.1.1.1', 'nama' => 'Desa Uji', 'level' => 'desa', 'tipe' => 'desa', 'parent_id' => $kecamatan->id]);
+        $rw = Wilayah::create(['kode' => 'T.1.1.1.1.1', 'nama' => 'RW 001', 'level' => 'rw', 'parent_id' => $desa->id]);
+        $rt1 = Wilayah::create(['kode' => 'T.1.1.1.1.1.1', 'nama' => 'RT 001', 'level' => 'rt', 'parent_id' => $rw->id]);
+        $rt2 = Wilayah::create(['kode' => 'T.1.1.1.1.1.2', 'nama' => 'RT 002', 'level' => 'rt', 'parent_id' => $rw->id]);
 
-        return ['desa' => $desa, 'rt1' => $rt1, 'rt2' => $rt2];
+        return compact('negara', 'provinsi', 'kabupaten', 'kecamatan', 'desa', 'rw', 'rt1', 'rt2');
     }
 
     protected function makeUser(string $username, string $role, ?int $wilayahId): User
@@ -52,6 +57,7 @@ trait FixturesRukunData
             'password' => Hash::make('password'),
             'role' => $role,
             'id_wilayah' => $wilayahId,
+            'is_active' => true,
         ]);
     }
 

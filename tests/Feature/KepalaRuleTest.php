@@ -18,7 +18,7 @@ class KepalaRuleTest extends TestCase
     public function test_kepala_kedua_ditolak_database(): void
     {
         $w = $this->seedDasar();
-        $admin = $this->makeUser('admin', 'admin', null);
+        $admin = $this->makeUser('admin', 'superadmin', null);
 
         $keluarga = $this->makeKeluarga($w['rt1']->id, '1111111111111111', [
             ['nik' => '1111111111111111', 'hubungan' => 1],

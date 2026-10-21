@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\Role;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -17,8 +18,6 @@ class User extends Authenticatable implements FilamentUser
     use HasFactory, Notifiable;
 
     /**
-     * The attributes that are mass assignable.
-     *
      * @var list<string>
      */
     protected $fillable = [
@@ -28,11 +27,11 @@ class User extends Authenticatable implements FilamentUser
         'password',
         'role',
         'id_wilayah',
+        'is_active',
+        'created_by',
     ];
 
     /**
-     * The attributes that should be hidden for serialization.
-     *
      * @var list<string>
      */
     protected $hidden = [
@@ -41,8 +40,6 @@ class User extends Authenticatable implements FilamentUser
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -50,6 +47,8 @@ class User extends Authenticatable implements FilamentUser
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'role' => Role::class,
+            'is_active' => 'boolean',
         ];
     }
 
@@ -58,16 +57,57 @@ class User extends Authenticatable implements FilamentUser
         return $this->belongsTo(Wilayah::class, 'id_wilayah');
     }
 
-    public function isAdmin(): bool
+    public function pembuat(): BelongsTo
     {
-        return $this->role === 'admin';
+        return $this->belongsTo(User::class, 'created_by');
     }
 
-    // Semua akun dibuat admin/seeder (tanpa registrasi mandiri, §3),
-    // sehingga semua peran boleh membuka panel; batas data diatur
-    // global scope + policy.
+    public function bawahan(): HasMany
+    {
+        return $this->hasMany(User::class, 'created_by');
+    }
+
+    public function isSuperadmin(): bool
+    {
+        return $this->role === Role::Superadmin;
+    }
+
+    public function isAdminRw(): bool
+    {
+        return $this->role === Role::AdminRw;
+    }
+
+    public function isAdminRt(): bool
+    {
+        return $this->role === Role::AdminRt;
+    }
+
+    // Keputusan 5/2.4: satu tempat keputusan boleh-tidaknya melihat data
+    // pribadi penuh (NIK/No KK utuh). admin_rw mengikuti saklar config.
+    public function bolehLihatDataPenuh(): bool
+    {
+        return match ($this->role) {
+            Role::Superadmin, Role::AdminRt => true,
+            Role::AdminRw => (bool) config('sensitif.rw_lihat_penuh', false),
+        };
+    }
+
+    // Level wilayah yang wajib dimiliki peran ini.
+    public function levelWilayahWajib(): ?string
+    {
+        return $this->role->levelWilayah();
+    }
+
+    // Benar bila peran ini boleh membuat akun peran lain (admin_rt tidak).
+    public function bolehMembuatAkun(): bool
+    {
+        return $this->role->bolehMembuat() !== [];
+    }
+
+    // Semua akun dibuat superadmin/admin, tanpa registrasi mandiri (§3).
+    // Akun nonaktif tidak boleh masuk panel.
     public function canAccessPanel(Panel $panel): bool
     {
-        return in_array($this->role, ['admin', 'desa', 'rt_rw'], true);
+        return $this->is_active === true;
     }
 }

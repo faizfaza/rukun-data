@@ -42,6 +42,10 @@ class KeluargaResource extends Resource
 
     protected static ?string $navigationLabel = 'Keluarga';
 
+    // Fase 3.6: daftar datar keluarga tidak masuk menu; halaman buat, edit, dan
+    // view tetap dipakai dari tree (Jelajah Wilayah).
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static string|\UnitEnum|null $navigationGroup = 'Pendataan';
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-users';
@@ -59,7 +63,11 @@ class KeluargaResource extends Resource
                         ->options(static::rtOptions())
                         ->required()
                         ->searchable()
-                        ->preload(),
+                        ->preload()
+                        // Fase 3.3: saat dibuka dari node RT, RT terpilih dan terkunci.
+                        ->default(fn (): ?int => request()->integer('id_wilayah') ?: null)
+                        ->disabled(fn (): bool => (bool) request()->integer('id_wilayah'))
+                        ->dehydrated(),
                     TextInput::make('no_kk')
                         ->label('No KK')
                         ->required()

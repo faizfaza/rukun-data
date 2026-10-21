@@ -18,7 +18,7 @@ class AlurKeluargaTest extends TestCase
     public function test_petugas_rt_input_satu_keluarga_utuh(): void
     {
         $w = $this->seedDasar();
-        $rt1 = $this->makeUser('petugas-rt1', 'rt_rw', $w['rt1']->id);
+        $rt1 = $this->makeUser('petugas-rt1', 'admin_rt', $w['rt1']->id);
 
         $this->actingAs($rt1);
 
@@ -79,12 +79,12 @@ class AlurKeluargaTest extends TestCase
     public function test_no_kk_ganda_ditolak_dengan_pesan(): void
     {
         $w = $this->seedDasar();
-        $admin = $this->makeUser('admin', 'admin', null);
+        $admin = $this->makeUser('admin', 'superadmin', null);
         $this->makeKeluarga($w['rt1']->id, '6371010101000001', [
             ['nik' => '6371010101800001', 'hubungan' => 1],
         ], $admin->id);
 
-        $rt1 = $this->makeUser('petugas-rt1', 'rt_rw', $w['rt1']->id);
+        $rt1 = $this->makeUser('petugas-rt1', 'admin_rt', $w['rt1']->id);
         $this->actingAs($rt1);
 
         Livewire::test(CreateKeluarga::class)

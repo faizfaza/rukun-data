@@ -6,9 +6,10 @@ use App\Models\Keluarga;
 use App\Models\User;
 use App\Support\WilayahAccess;
 
-// PRD §3/F2: admin penuh; desa baca gabungan; rt_rw kelola wilayahnya.
-// Baris di luar wilayah sudah disaring global scope (404); policy ini
-// pertahanan kedua sekaligus pengatur boleh-tidaknya aksi per peran.
+// Keputusan 5: superadmin kelola semua; admin_rt kelola KK/anggota di RT-nya;
+// admin_rw hanya melihat (tanpa input/edit/hapus). Baris di luar wilayah sudah
+// disaring global scope (404); policy ini pertahanan kedua sekaligus pengatur
+// boleh-tidaknya aksi per peran. forceDelete selalu ditolak.
 class KeluargaPolicy
 {
     public function viewAny(User $user): bool
@@ -23,22 +24,23 @@ class KeluargaPolicy
 
     public function create(User $user): bool
     {
-        return $user->role !== 'desa';
+        return $user->isSuperadmin() || $user->isAdminRt();
     }
 
     public function update(User $user, Keluarga $keluarga): bool
     {
-        return $user->role !== 'desa' && $this->inWilayah($user, $keluarga->id_wilayah);
+        return ($user->isSuperadmin() || $user->isAdminRt())
+            && $this->inWilayah($user, $keluarga->id_wilayah);
     }
 
     public function delete(User $user, Keluarga $keluarga): bool
     {
-        return $user->role !== 'desa' && $this->inWilayah($user, $keluarga->id_wilayah);
+        return $this->update($user, $keluarga);
     }
 
     public function restore(User $user, Keluarga $keluarga): bool
     {
-        return $user->role !== 'desa' && $this->inWilayah($user, $keluarga->id_wilayah);
+        return $this->update($user, $keluarga);
     }
 
     public function forceDelete(User $user, Keluarga $keluarga): bool

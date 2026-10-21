@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\KeluargaResource\Pages;
 
 use App\Filament\Resources\KeluargaResource;
+use App\Models\Anggota;
+use App\Models\Keluarga;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Infolists\Components\RepeatableEntry;
@@ -23,17 +25,29 @@ class ViewKeluarga extends ViewRecord
                 // DESIGN.md §7.4: keterangan privasi pada data yang tampil penuh.
                 ->description('Data pribadi, jangan dibagikan di luar keperluan pendataan.')
                 ->schema([
-                TextEntry::make('no_kk')->label('No KK'),
-                TextEntry::make('wilayah.nama')->label('RT'),
-                TextEntry::make('alamat')->label('Alamat')->columnSpanFull(),
-                TextEntry::make('kode_pos')->label('Kode pos'),
-            ])->columns(3),
+                    // Keputusan 5/2.4: admin_rw (saat rw_lihat_penuh=false) melihat
+                    // No KK tersamarkan; superadmin & admin_rt melihat penuh.
+                    TextEntry::make('no_kk')
+                        ->label('No KK')
+                        ->icon(fn (): ?string => auth()->user()?->bolehLihatDataPenuh() ? null : 'heroicon-m-lock-closed')
+                        ->formatStateUsing(fn (?string $state, Keluarga $record): ?string => auth()->user()?->bolehLihatDataPenuh()
+                            ? $state
+                            : $record->no_kk_masked),
+                    TextEntry::make('wilayah.nama')->label('RT'),
+                    TextEntry::make('alamat')->label('Alamat')->columnSpanFull(),
+                    TextEntry::make('kode_pos')->label('Kode pos'),
+                ])->columns(3),
 
             Section::make('Anggota')->schema([
                 RepeatableEntry::make('anggota')
                     ->label('')
                     ->schema([
-                        TextEntry::make('nik')->label('NIK'),
+                        TextEntry::make('nik')
+                            ->label('NIK')
+                            ->icon(fn (): ?string => auth()->user()?->bolehLihatDataPenuh() ? null : 'heroicon-m-lock-closed')
+                            ->formatStateUsing(fn (?string $state, Anggota $record): ?string => auth()->user()?->bolehLihatDataPenuh()
+                                ? $state
+                                : $record->nik_masked),
                         TextEntry::make('nama_lengkap')->label('Nama'),
                         TextEntry::make('hubungan.nama')->label('Hubungan'),
                         TextEntry::make('jenis_kelamin')->label('L/P'),

@@ -5,9 +5,9 @@ namespace App\Support;
 use App\Models\User;
 use App\Models\Wilayah;
 
-// PRD F2: menerjemahkan peran + wilayah pengguna menjadi daftar id wilayah
-// tingkat RT yang boleh dibaca. null berarti tanpa batas (admin). Array
-// kosong berarti tidak berhak atas wilayah mana pun.
+// Fase 2.2: menerjemahkan peran + wilayah pengguna menjadi daftar id wilayah
+// tingkat RT yang boleh dibaca, memakai `path` (LIKE prefix) bukan rekursi.
+// null = tanpa batas (superadmin), array kosong = tidak berhak atas RT mana pun.
 final class WilayahAccess
 {
     /**
@@ -15,11 +15,12 @@ final class WilayahAccess
      */
     public static function allowedRtIds(?User $user): ?array
     {
+        // Tanpa pengguna login (seeder, console, queue): tanpa batas.
         if ($user === null) {
             return null;
         }
 
-        if ($user->role === 'admin') {
+        if ($user->isSuperadmin()) {
             return null;
         }
 
@@ -33,28 +34,41 @@ final class WilayahAccess
             return [];
         }
 
-        return self::rtIdsBelow($root);
-    }
-
-    /**
-     * @return list<int>
-     */
-    private static function rtIdsBelow(Wilayah $root): array
-    {
         if ($root->level === 'rt') {
             return [$root->id];
         }
 
-        $ids = [];
+        // Semua RT di seluruh keturunan wilayah pengguna (prefix path).
+        return Wilayah::where('level', 'rt')
+            ->where('path', 'like', $root->path.'%')
+            ->pluck('id')
+            ->all();
+    }
 
-        $children = Wilayah::where('parent_id', $root->id)->get();
-
-        foreach ($children as $child) {
-            foreach (self::rtIdsBelow($child) as $id) {
-                $ids[] = $id;
-            }
+    // Semua id wilayah (semua level) di dalam subtree pengguna, termasuk
+    // wilayah pengguna sendiri. Dipakai untuk membatasi pilihan wilayah saat
+    // membuat akun. null = tanpa batas (superadmin).
+    /**
+     * @return list<int>|null
+     */
+    public static function allowedWilayahIds(?User $user): ?array
+    {
+        if ($user === null || $user->isSuperadmin()) {
+            return null;
         }
 
-        return $ids;
+        if ($user->id_wilayah === null) {
+            return [];
+        }
+
+        $root = Wilayah::find($user->id_wilayah);
+
+        if ($root === null) {
+            return [];
+        }
+
+        return Wilayah::where('path', 'like', $root->path.'%')
+            ->pluck('id')
+            ->all();
     }
 }

@@ -45,9 +45,13 @@ class Login extends BaseLogin
      */
     protected function getCredentialsFromFormData(#[SensitiveParameter] array $data): array
     {
+        // Keputusan 5/2.6: akun nonaktif ditolak lewat jalur kredensial yang
+        // sama, sehingga pesannya identik dengan gagal login biasa dan tidak
+        // membocorkan keberadaan akun.
         return [
             'username' => $data['username'],
             'password' => $data['password'],
+            'is_active' => true,
         ];
     }
 }

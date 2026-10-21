@@ -7,13 +7,11 @@ use Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
-    /**
-     * A basic test example.
-     */
-    public function test_the_application_returns_a_successful_response(): void
+    // routes/web.php mengarahkan "/" ke panel "/admin" (302), bukan 200.
+    public function test_the_application_redirects_to_panel(): void
     {
         $response = $this->get('/');
 
-        $response->assertStatus(200);
+        $response->assertRedirect('/admin');
     }
 }

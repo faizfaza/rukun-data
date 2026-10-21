@@ -148,7 +148,6 @@ class UserResource extends Resource
 
                 TextColumn::make('name')
                     ->label('Nama Admin')
-                    ->searchable()
                     ->sortable(),
 
                 TextColumn::make('rw')
@@ -418,35 +417,7 @@ class UserResource extends Resource
 
                         return $query;
                     })
-                    ->indicateUsing(function (array $data): array {
-                        $indicators = [];
-
-                        if (! empty($data['provinsi_id'])) {
-                            $indicators[] = 'Provinsi: '.Wilayah::find($data['provinsi_id'])?->nama;
-                        }
-
-                        if (! empty($data['kabkota_id'])) {
-                            $indicators[] = 'Kab/Kota: '.Wilayah::find($data['kabkota_id'])?->nama;
-                        }
-
-                        if (! empty($data['kecamatan_id'])) {
-                            $indicators[] = 'Kecamatan: '.Wilayah::find($data['kecamatan_id'])?->nama;
-                        }
-
-                        if (! empty($data['kelurahan_id'])) {
-                            $indicators[] = 'Kelurahan: '.Wilayah::find($data['kelurahan_id'])?->nama;
-                        }
-
-                        if (! empty($data['rw_id'])) {
-                            $indicators[] = 'RW: '.Wilayah::find($data['rw_id'])?->kode;
-                        }
-
-                        if (! empty($data['rt_id'])) {
-                            $indicators[] = 'RT: '.Wilayah::find($data['rt_id'])?->kode;
-                        }
-
-                        return $indicators;
-                    }),
+                    ->indicateUsing(fn (): array => []),
             ])
             ->filtersLayout(FiltersLayout::AboveContent)
             ->striped()

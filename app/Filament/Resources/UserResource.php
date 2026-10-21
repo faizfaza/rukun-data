@@ -10,6 +10,7 @@ use App\Support\WilayahAccess;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Select as FormSelect;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
@@ -18,6 +19,8 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -89,14 +92,100 @@ class UserResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->heading('Data Admin')
             ->columns([
-                TextColumn::make('username')->label('Username')->searchable()->sortable(),
-                TextColumn::make('name')->label('Nama')->searchable(),
-                TextColumn::make('role')
-                    ->label('Peran')
-                    ->badge()
-                    ->formatStateUsing(fn (Role $state): string => $state->label()),
-                TextColumn::make('wilayah.nama')->label('Wilayah')->placeholder('—'),
+                TextColumn::make('provinsi')
+                    ->label('Provinsi')
+                    ->getStateUsing(function (User $record): string {
+                        if (! $record->wilayah) {
+                            return '—';
+                        }
+
+                        return $record->wilayah->ancestors()
+                            ->firstWhere('level', 'provinsi')
+                            ?->nama ?? '—';
+                    })
+                    ->sortable(false),
+
+                TextColumn::make('kab_kota')
+                    ->label('Kab/Kota')
+                    ->getStateUsing(function (User $record): string {
+                        if (! $record->wilayah) {
+                            return '—';
+                        }
+
+                        return $record->wilayah->ancestors()
+                            ->firstWhere('level', 'kabupaten_kota')
+                            ?->nama ?? '—';
+                    })
+                    ->sortable(false),
+
+                TextColumn::make('kecamatan')
+                    ->label('Kecamatan')
+                    ->getStateUsing(function (User $record): string {
+                        if (! $record->wilayah) {
+                            return '—';
+                        }
+
+                        return $record->wilayah->ancestors()
+                            ->firstWhere('level', 'kecamatan')
+                            ?->nama ?? '—';
+                    })
+                    ->sortable(false),
+
+                TextColumn::make('kelurahan')
+                    ->label('Kelurahan/Desa')
+                    ->getStateUsing(function (User $record): string {
+                        if (! $record->wilayah) {
+                            return '—';
+                        }
+
+                        return $record->wilayah->ancestors()
+                            ->firstWhere('level', 'desa')
+                            ?->nama ?? '—';
+                    })
+                    ->sortable(false),
+
+                TextColumn::make('name')
+                    ->label('Nama Admin')
+                    ->searchable()
+                    ->sortable(),
+
+                TextColumn::make('rw')
+                    ->label('RW')
+                    ->getStateUsing(function (User $record): string {
+                        if (! $record->wilayah) {
+                            return '—';
+                        }
+
+                        // Jika admin_rw, wilayahnya adalah RW langsung
+                        if ($record->role === Role::AdminRw) {
+                            return $record->wilayah->kode ?? $record->wilayah->nama;
+                        }
+
+                        // Jika admin_rt, cari ancestor RW
+                        return $record->wilayah->ancestors()
+                            ->firstWhere('level', 'rw')
+                            ?->kode ?? '—';
+                    })
+                    ->sortable(false),
+
+                TextColumn::make('rt')
+                    ->label('RT')
+                    ->getStateUsing(function (User $record): string {
+                        if (! $record->wilayah) {
+                            return '—';
+                        }
+
+                        // Hanya admin_rt yang punya RT
+                        if ($record->role !== Role::AdminRt) {
+                            return '—';
+                        }
+
+                        return $record->wilayah->kode ?? $record->wilayah->nama;
+                    })
+                    ->sortable(false),
+
                 TextColumn::make('is_active')
                     ->label('Status')
                     ->badge()
@@ -104,6 +193,262 @@ class UserResource extends Resource
                     ->color(fn (bool $state): string => $state ? 'success' : 'danger')
                     ->icon(fn (bool $state): string => $state ? 'heroicon-m-check-circle' : 'heroicon-m-x-circle'),
             ])
+            ->filters([
+                Filter::make('filter_wilayah')
+                    ->label('Filter Pengguna')
+                    ->columnSpanFull()
+                    ->columns(3)
+                    ->form([
+                        // Baris 1: Provinsi, Kab/Kota, Kecamatan
+                        FormSelect::make('provinsi_id')
+                            ->label('Provinsi')
+                            ->options(fn (): array => Wilayah::where('level', 'provinsi')
+                                ->orderBy('nama')
+                                ->pluck('nama', 'id')
+                                ->all()
+                            )
+                            ->placeholder('— Semua Provinsi —')
+                            ->live()
+                            ->afterStateUpdated(function (Set $set): void {
+                                $set('kabkota_id', null);
+                                $set('kecamatan_id', null);
+                                $set('kelurahan_id', null);
+                                $set('rw_id', null);
+                                $set('rt_id', null);
+                            }),
+
+                        FormSelect::make('kabkota_id')
+                            ->label('Kabupaten/Kota')
+                            ->options(fn (Get $get): array => Wilayah::where('level', 'kabupaten_kota')
+                                ->when(
+                                    $get('provinsi_id'),
+                                    fn (Builder $q, $pid): Builder => $q->where('parent_id', $pid)
+                                )
+                                ->orderBy('nama')
+                                ->pluck('nama', 'id')
+                                ->all()
+                            )
+                            ->placeholder('— Semua Kab/Kota —')
+                            ->live()
+                            ->afterStateUpdated(function (Set $set): void {
+                                $set('kecamatan_id', null);
+                                $set('kelurahan_id', null);
+                                $set('rw_id', null);
+                                $set('rt_id', null);
+                            }),
+
+                        FormSelect::make('kecamatan_id')
+                            ->label('Kecamatan')
+                            ->options(fn (Get $get): array => Wilayah::where('level', 'kecamatan')
+                                ->when(
+                                    $get('kabkota_id'),
+                                    fn (Builder $q, $kid): Builder => $q->where('parent_id', $kid)
+                                )
+                                ->orderBy('nama')
+                                ->pluck('nama', 'id')
+                                ->all()
+                            )
+                            ->placeholder('— Semua Kecamatan —')
+                            ->live()
+                            ->afterStateUpdated(function (Set $set): void {
+                                $set('kelurahan_id', null);
+                                $set('rw_id', null);
+                                $set('rt_id', null);
+                            }),
+
+                        // Baris 2: Kelurahan, RW, RT
+                        FormSelect::make('kelurahan_id')
+                            ->label('Kelurahan/Desa')
+                            ->options(fn (Get $get): array => Wilayah::where('level', 'desa')
+                                ->when(
+                                    $get('kecamatan_id'),
+                                    fn (Builder $q, $kid): Builder => $q->where('parent_id', $kid)
+                                )
+                                ->orderBy('nama')
+                                ->pluck('nama', 'id')
+                                ->all()
+                            )
+                            ->placeholder('— Semua Kelurahan —')
+                            ->live()
+                            ->afterStateUpdated(function (Set $set): void {
+                                $set('rw_id', null);
+                                $set('rt_id', null);
+                            }),
+
+                        FormSelect::make('rw_id')
+                            ->label('RW')
+                            ->options(fn (Get $get): array => Wilayah::where('level', 'rw')
+                                ->when(
+                                    $get('kelurahan_id'),
+                                    fn (Builder $q, $did): Builder => $q->where(function (Builder $q2) use ($did): void {
+                                        // RW bisa berinduk desa atau dusun
+                                        $dusunIds = Wilayah::where('level', 'dusun')
+                                            ->where('parent_id', $did)
+                                            ->pluck('id')
+                                            ->all();
+                                        $q2->where('parent_id', $did)
+                                           ->orWhereIn('parent_id', $dusunIds);
+                                    })
+                                )
+                                ->orderBy('kode')
+                                ->get()
+                                ->mapWithKeys(fn (Wilayah $w): array => [$w->id => "RW {$w->kode}"])
+                                ->all()
+                            )
+                            ->placeholder('— Semua RW —')
+                            ->live()
+                            ->afterStateUpdated(function (Set $set): void {
+                                $set('rt_id', null);
+                            }),
+
+                        FormSelect::make('rt_id')
+                            ->label('RT')
+                            ->options(fn (Get $get): array => Wilayah::where('level', 'rt')
+                                ->when(
+                                    $get('rw_id'),
+                                    fn (Builder $q, $rwid): Builder => $q->where('parent_id', $rwid)
+                                )
+                                ->orderBy('kode')
+                                ->get()
+                                ->mapWithKeys(fn (Wilayah $w): array => [$w->id => "RT {$w->kode}"])
+                                ->all()
+                            )
+                            ->placeholder('— Semua RT —'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        // Filter dari yang paling spesifik ke paling umum
+
+                        if (! empty($data['rt_id'])) {
+                            return $query->where('id_wilayah', $data['rt_id']);
+                        }
+
+                        if (! empty($data['rw_id'])) {
+                            $rtIds = Wilayah::where('level', 'rt')
+                                ->where('parent_id', $data['rw_id'])
+                                ->pluck('id');
+
+                            return $query->where(function (Builder $q) use ($data, $rtIds): void {
+                                $q->where('id_wilayah', $data['rw_id'])
+                                  ->orWhereIn('id_wilayah', $rtIds);
+                            });
+                        }
+
+                        if (! empty($data['kelurahan_id'])) {
+                            $dusunIds = Wilayah::where('level', 'dusun')
+                                ->where('parent_id', $data['kelurahan_id'])
+                                ->pluck('id')->all();
+
+                            $rwIds = Wilayah::where('level', 'rw')
+                                ->where(function (Builder $q) use ($data, $dusunIds): void {
+                                    $q->where('parent_id', $data['kelurahan_id'])
+                                      ->orWhereIn('parent_id', $dusunIds);
+                                })->pluck('id')->all();
+
+                            $rtIds = Wilayah::where('level', 'rt')
+                                ->whereIn('parent_id', $rwIds)->pluck('id')->all();
+
+                            return $query->whereIn('id_wilayah', array_merge($rwIds, $rtIds));
+                        }
+
+                        if (! empty($data['kecamatan_id'])) {
+                            $desaIds = Wilayah::where('level', 'desa')
+                                ->where('parent_id', $data['kecamatan_id'])->pluck('id')->all();
+
+                            $dusunIds = Wilayah::where('level', 'dusun')
+                                ->whereIn('parent_id', $desaIds)->pluck('id')->all();
+
+                            $rwIds = Wilayah::where('level', 'rw')
+                                ->where(function (Builder $q) use ($desaIds, $dusunIds): void {
+                                    $q->whereIn('parent_id', $desaIds)
+                                      ->orWhereIn('parent_id', $dusunIds);
+                                })->pluck('id')->all();
+
+                            $rtIds = Wilayah::where('level', 'rt')
+                                ->whereIn('parent_id', $rwIds)->pluck('id')->all();
+
+                            return $query->whereIn('id_wilayah', array_merge($rwIds, $rtIds));
+                        }
+
+                        if (! empty($data['kabkota_id'])) {
+                            $kecIds = Wilayah::where('level', 'kecamatan')
+                                ->where('parent_id', $data['kabkota_id'])->pluck('id')->all();
+
+                            $desaIds = Wilayah::where('level', 'desa')
+                                ->whereIn('parent_id', $kecIds)->pluck('id')->all();
+
+                            $dusunIds = Wilayah::where('level', 'dusun')
+                                ->whereIn('parent_id', $desaIds)->pluck('id')->all();
+
+                            $rwIds = Wilayah::where('level', 'rw')
+                                ->where(function (Builder $q) use ($desaIds, $dusunIds): void {
+                                    $q->whereIn('parent_id', $desaIds)
+                                      ->orWhereIn('parent_id', $dusunIds);
+                                })->pluck('id')->all();
+
+                            $rtIds = Wilayah::where('level', 'rt')
+                                ->whereIn('parent_id', $rwIds)->pluck('id')->all();
+
+                            return $query->whereIn('id_wilayah', array_merge($rwIds, $rtIds));
+                        }
+
+                        if (! empty($data['provinsi_id'])) {
+                            $kabIds = Wilayah::where('level', 'kabupaten_kota')
+                                ->where('parent_id', $data['provinsi_id'])->pluck('id')->all();
+
+                            $kecIds = Wilayah::where('level', 'kecamatan')
+                                ->whereIn('parent_id', $kabIds)->pluck('id')->all();
+
+                            $desaIds = Wilayah::where('level', 'desa')
+                                ->whereIn('parent_id', $kecIds)->pluck('id')->all();
+
+                            $dusunIds = Wilayah::where('level', 'dusun')
+                                ->whereIn('parent_id', $desaIds)->pluck('id')->all();
+
+                            $rwIds = Wilayah::where('level', 'rw')
+                                ->where(function (Builder $q) use ($desaIds, $dusunIds): void {
+                                    $q->whereIn('parent_id', $desaIds)
+                                      ->orWhereIn('parent_id', $dusunIds);
+                                })->pluck('id')->all();
+
+                            $rtIds = Wilayah::where('level', 'rt')
+                                ->whereIn('parent_id', $rwIds)->pluck('id')->all();
+
+                            return $query->whereIn('id_wilayah', array_merge($rwIds, $rtIds));
+                        }
+
+                        return $query;
+                    })
+                    ->indicateUsing(function (array $data): array {
+                        $indicators = [];
+
+                        if (! empty($data['provinsi_id'])) {
+                            $indicators[] = 'Provinsi: '.Wilayah::find($data['provinsi_id'])?->nama;
+                        }
+
+                        if (! empty($data['kabkota_id'])) {
+                            $indicators[] = 'Kab/Kota: '.Wilayah::find($data['kabkota_id'])?->nama;
+                        }
+
+                        if (! empty($data['kecamatan_id'])) {
+                            $indicators[] = 'Kecamatan: '.Wilayah::find($data['kecamatan_id'])?->nama;
+                        }
+
+                        if (! empty($data['kelurahan_id'])) {
+                            $indicators[] = 'Kelurahan: '.Wilayah::find($data['kelurahan_id'])?->nama;
+                        }
+
+                        if (! empty($data['rw_id'])) {
+                            $indicators[] = 'RW: '.Wilayah::find($data['rw_id'])?->kode;
+                        }
+
+                        if (! empty($data['rt_id'])) {
+                            $indicators[] = 'RT: '.Wilayah::find($data['rt_id'])?->kode;
+                        }
+
+                        return $indicators;
+                    }),
+            ])
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->striped()
             ->emptyStateHeading('Belum ada akun')
             ->emptyStateDescription('Tambahkan akun admin RT untuk wilayah Anda.')

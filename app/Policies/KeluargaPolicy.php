@@ -24,12 +24,12 @@ class KeluargaPolicy
 
     public function create(User $user): bool
     {
-        return $user->isSuperadmin() || $user->isAdminRt();
+        return $user->isSuperadmin() || $user->isAdmin() || $user->isAdminRw() || $user->isAdminRt();
     }
 
     public function update(User $user, Keluarga $keluarga): bool
     {
-        return ($user->isSuperadmin() || $user->isAdminRt())
+        return ($user->isSuperadmin() || $user->isAdmin() || $user->isAdminRw() || $user->isAdminRt())
             && $this->inWilayah($user, $keluarga->id_wilayah);
     }
 

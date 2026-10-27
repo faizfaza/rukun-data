@@ -29,9 +29,18 @@ class RingkasanWidget extends StatsOverviewWidget
             ->where('tanggal_lahir', '>', now()->subYears(60))
             ->count();
 
+        $user = auth()->user();
+        $userWilayah = $user?->wilayah;
+
+        $wilayahDesc = match (true) {
+            $user?->isAdminRt() && $userWilayah => $userWilayah->alamatLengkap(),
+            $user?->isAdminRw() && $userWilayah => $userWilayah->alamatLengkap().' ('.Keluarga::query()->distinct()->count('id_wilayah').' RT aktif)',
+            default => 'Tersebar di '.Keluarga::query()->distinct()->count('id_wilayah').' RT (Nasional)',
+        };
+
         return [
             Stat::make('Keluarga', $keluarga)
-                ->description('Tersebar di '.Keluarga::query()->distinct()->count('id_wilayah').' RT')
+                ->description($wilayahDesc)
                 ->descriptionIcon('heroicon-m-home-modern')
                 ->color('primary'),
 

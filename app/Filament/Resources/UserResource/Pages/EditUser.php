@@ -30,6 +30,12 @@ class EditUser extends EditRecord
             }
         }
 
+        // Pengguna tidak berwenang menonaktifkan akun jika tidak memiliki izin deactivate (misal: admin menonaktifkan admin lain atau superadmin).
+        $currentUser = auth()->user();
+        if ($currentUser && ! $currentUser->can('deactivate', $record)) {
+            $data['is_active'] = $record->is_active;
+        }
+
         $pesanRole = UserResource::pesanRoleTidakBoleh($data['role'] ?? null, $record);
 
         if ($pesanRole !== null) {

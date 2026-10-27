@@ -12,21 +12,17 @@ class UserPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->isSuperadmin() || $user->isAdminRw();
+        return $user->isSuperadmin() || $user->isAdmin();
     }
 
     public function view(User $user, User $target): bool
     {
-        if ($user->isSuperadmin()) {
-            return true;
-        }
-
-        return $user->isAdminRw() && $target->isAdminRt() && $this->inSubtree($user, $target->id_wilayah);
+        return $user->isSuperadmin() || $user->isAdmin();
     }
 
     public function create(User $user): bool
     {
-        return $user->bolehMembuatAkun();
+        return $user->isSuperadmin() || $user->isAdmin();
     }
 
     public function update(User $user, User $target): bool
@@ -39,7 +35,36 @@ class UserPolicy
             return true;
         }
 
-        return $user->isAdminRw() && $target->isAdminRt() && $this->inSubtree($user, $target->id_wilayah);
+        if ($user->isAdmin()) {
+            return ! $target->isSuperadmin();
+        }
+
+        return false;
+    }
+
+    public function deactivate(User $user, User $target): bool
+    {
+        // Pengguna tidak boleh menonaktifkan dirinya sendiri.
+        if ($user->is($target)) {
+            return false;
+        }
+
+        // Superadmin tidak boleh dinonaktifkan oleh siapa pun.
+        if ($target->isSuperadmin()) {
+            return false;
+        }
+
+        // Superadmin boleh menonaktifkan akun admin, admin_rw, dan admin_rt.
+        if ($user->isSuperadmin()) {
+            return true;
+        }
+
+        // Admin tidak dapat menonaktifkan admin lain dan tidak dapat menonaktifkan superadmin.
+        if ($user->isAdmin()) {
+            return ! $target->isAdmin() && ! $target->isSuperadmin();
+        }
+
+        return false;
     }
 
     public function delete(User $user, User $target): bool
@@ -55,16 +80,5 @@ class UserPolicy
     public function forceDelete(User $user, User $target): bool
     {
         return false;
-    }
-
-    private function inSubtree(User $user, ?int $idWilayah): bool
-    {
-        if ($idWilayah === null) {
-            return false;
-        }
-
-        $ids = WilayahAccess::allowedWilayahIds($user);
-
-        return $ids !== null && in_array($idWilayah, $ids, true);
     }
 }

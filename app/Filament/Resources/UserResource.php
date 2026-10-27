@@ -78,14 +78,14 @@ class UserResource extends Resource
                 ->options(fn (Get $get, ?User $record): array => static::wilayahOptions($get('role'), $record))
                 ->searchable()
                 ->preload()
-                ->required(fn (Get $get): bool => $get('role') !== Role::Superadmin->value)
-                ->visible(fn (Get $get): bool => $get('role') !== Role::Superadmin->value),
+                ->required(fn (Get $get): bool => ! in_array($get('role'), [Role::Superadmin->value, Role::Admin->value], true))
+                ->visible(fn (Get $get): bool => ! in_array($get('role'), [Role::Superadmin->value, Role::Admin->value], true)),
 
             Toggle::make('is_active')
                 ->label('Aktif')
                 ->default(true)
                 ->helperText('Akun tidak dihapus; nonaktifkan bila tidak dipakai lagi.')
-                ->disabled(fn (?User $record): bool => $record !== null && $record->is(auth()->user())),
+                ->disabled(fn (?User $record): bool => $record !== null && ! (auth()->user()?->can('deactivate', $record) ?? false)),
         ]);
     }
 
@@ -94,6 +94,38 @@ class UserResource extends Resource
         return $table
             ->heading('Data Admin')
             ->columns([
+                TextColumn::make('is_active')
+                    ->label('Status')
+                    ->badge()
+                    ->formatStateUsing(fn (bool $state): string => $state ? 'Aktif' : 'Nonaktif')
+                    ->color(fn (bool $state): string => $state ? 'success' : 'danger')
+                    ->icon(fn (bool $state): string => $state ? 'heroicon-m-check-circle' : 'heroicon-m-x-circle'),
+
+                TextColumn::make('role')
+                    ->label('Level Admin')
+                    ->badge()
+                    ->formatStateUsing(fn ($state): string => match ($state instanceof Role ? $state : Role::tryFrom((string) $state)) {
+                        Role::Superadmin => 'Superadmin',
+                        Role::Admin => 'Admin',
+                        Role::AdminRw => 'Admin RW',
+                        Role::AdminRt => 'Admin RT',
+                        default => (string) $state,
+                    })
+                    ->color(fn ($state): string => match ($state instanceof Role ? $state : Role::tryFrom((string) $state)) {
+                        Role::Superadmin => 'danger',
+                        Role::Admin => 'warning',
+                        Role::AdminRw => 'info',
+                        Role::AdminRt => 'gray',
+                        default => 'gray',
+                    })
+                    ->sortable(),
+
+                TextColumn::make('name')
+                    ->label('Nama Admin')
+                    ->description(fn (User $record): ?string => $record->username ? "@{$record->username}" : null)
+                    ->searchable()
+                    ->sortable(),
+
                 TextColumn::make('provinsi')
                     ->label('Provinsi')
                     ->getStateUsing(function (User $record): string {
@@ -146,10 +178,6 @@ class UserResource extends Resource
                     })
                     ->sortable(false),
 
-                TextColumn::make('name')
-                    ->label('Nama Admin')
-                    ->sortable(),
-
                 TextColumn::make('rw')
                     ->label('RW')
                     ->getStateUsing(function (User $record): string {
@@ -184,13 +212,6 @@ class UserResource extends Resource
                         return $record->wilayah->kode ?? $record->wilayah->nama;
                     })
                     ->sortable(false),
-
-                TextColumn::make('is_active')
-                    ->label('Status')
-                    ->badge()
-                    ->formatStateUsing(fn (bool $state): string => $state ? 'Aktif' : 'Nonaktif')
-                    ->color(fn (bool $state): string => $state ? 'success' : 'danger')
-                    ->icon(fn (bool $state): string => $state ? 'heroicon-m-check-circle' : 'heroicon-m-x-circle'),
             ])
             ->filters([
                 Filter::make('filter_wilayah')
@@ -430,10 +451,12 @@ class UserResource extends Resource
                     ->icon(fn (User $record): string => $record->is_active ? 'heroicon-m-no-symbol' : 'heroicon-m-check-circle')
                     ->color(fn (User $record): string => $record->is_active ? 'danger' : 'success')
                     ->requiresConfirmation()
-                    // Pengguna tidak boleh menonaktifkan dirinya sendiri.
-                    ->visible(fn (User $record): bool => ! $record->is(auth()->user()))
-                    ->authorize(fn (User $record): bool => auth()->user()->can('update', $record))
+                    // Pengguna tidak boleh menonaktifkan dirinya sendiri,
+                    // dan admin tidak boleh menonaktifkan admin lain atau superadmin.
+                    ->visible(fn (User $record): bool => auth()->user()?->can('deactivate', $record) ?? false)
                     ->action(function (User $record): void {
+                        abort_unless(auth()->user()?->can('deactivate', $record), 403);
+
                         $record->update(['is_active' => ! $record->is_active]);
 
                         Notification::make()
@@ -445,20 +468,17 @@ class UserResource extends Resource
             ]);
     }
 
-    // admin_rw hanya melihat akun admin_rt di wilayahnya; superadmin semua.
+    // Hanya superadmin dan admin yang mengelola akun pengguna.
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
         $user = auth()->user();
 
-        if ($user === null || $user->isSuperadmin()) {
+        if ($user === null || $user->isSuperadmin() || $user->isAdmin()) {
             return $query;
         }
 
-        $ids = WilayahAccess::allowedWilayahIds($user);
-
-        return $query->where('role', Role::AdminRt->value)
-            ->whereIn('id_wilayah', $ids ?? []);
+        return $query->whereRaw('1 = 0');
     }
 
     public static function getPages(): array

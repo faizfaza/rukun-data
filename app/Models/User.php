@@ -67,9 +67,27 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(User::class, 'created_by');
     }
 
+    public function setRoleAttribute(mixed $value): void
+    {
+        if ($value === 'rw') {
+            $value = Role::AdminRw;
+        } elseif ($value === 'rt') {
+            $value = Role::AdminRt;
+        } elseif (is_string($value)) {
+            $value = Role::tryFrom($value) ?? $value;
+        }
+
+        $this->attributes['role'] = $value instanceof Role ? $value->value : $value;
+    }
+
     public function isSuperadmin(): bool
     {
         return $this->role === Role::Superadmin;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === Role::Admin;
     }
 
     public function isAdminRw(): bool
@@ -77,17 +95,25 @@ class User extends Authenticatable implements FilamentUser
         return $this->role === Role::AdminRw;
     }
 
+    public function isRw(): bool
+    {
+        return $this->isAdminRw();
+    }
+
     public function isAdminRt(): bool
     {
         return $this->role === Role::AdminRt;
     }
 
-    // Keputusan 5/2.4: satu tempat keputusan boleh-tidaknya melihat data
-    // pribadi penuh (NIK/No KK utuh). admin_rw mengikuti saklar config.
+    public function isRt(): bool
+    {
+        return $this->isAdminRt();
+    }
+
     public function bolehLihatDataPenuh(): bool
     {
         return match ($this->role) {
-            Role::Superadmin, Role::AdminRt => true,
+            Role::Superadmin, Role::Admin, Role::AdminRt => true,
             Role::AdminRw => (bool) config('sensitif.rw_lihat_penuh', false),
         };
     }
@@ -95,7 +121,7 @@ class User extends Authenticatable implements FilamentUser
     // Level wilayah yang wajib dimiliki peran ini.
     public function levelWilayahWajib(): ?string
     {
-        return $this->role->levelWilayah();
+        return $this->role?->levelWilayah();
     }
 
     // Benar bila peran ini boleh membuat akun peran lain (admin_rt tidak).

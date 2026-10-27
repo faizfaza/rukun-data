@@ -106,12 +106,21 @@ class JelajahWilayah extends Page implements HasTable
             ->defaultPaginationPageOption(25)
             ->striped()
             ->emptyStateHeading('Belum ada keluarga di RT ini')
-            ->emptyStateDescription('Pilih Tambah keluarga untuk memulai.');
+            ->emptyStateDescription('Pilih Tambah keluarga untuk memulai.')
+            ->emptyStateActions([
+                Action::make('tambahKeluargaEmpty')
+                    ->label(fn (): string => 'Tambah keluarga di '.($this->nodeTerpilihRt()?->nama ?? 'RT ini'))
+                    ->icon('heroicon-o-plus')
+                    ->button()
+                    ->color('primary')
+                    ->url(fn (): string => KeluargaResource::getUrl('create', array_filter(['id_wilayah' => $this->nodeTerpilihRt()?->id])))
+                    ->visible(fn (): bool => $this->bolehTambahKeluarga()),
+            ]);
     }
 
     protected function getHeaderActions(): array
     {
-        $actions = [
+        return [
             Action::make('cari')
                 ->label('Cari No KK / NIK')
                 ->icon('heroicon-o-magnifying-glass')
@@ -124,16 +133,26 @@ class JelajahWilayah extends Page implements HasTable
                         ->helperText('Masukkan nomor lengkap 16 digit.'),
                 ])
                 ->action(fn (array $data) => $this->cariPersis($data['nomor'])),
-        ];
 
-        if ($this->bolehTambahKeluarga()) {
-            $actions[] = Action::make('tambahKeluarga')
+            Action::make('tambahKeluarga')
                 ->label('Tambah keluarga')
                 ->icon('heroicon-o-plus')
-                ->url(fn (): string => KeluargaResource::getUrl('create', ['id_wilayah' => $this->nodeTerpilihRt()->id]));
-        }
+                ->color('primary')
+                ->button()
+                ->url(function (): string {
+                    $rt = $this->nodeTerpilihRt();
 
-        return $actions;
+                    return KeluargaResource::getUrl('create', array_filter(['id_wilayah' => $rt?->id]));
+                })
+                ->visible(function (): bool {
+                    $user = auth()->user();
+                    if ($user?->isSuperadmin() || $user?->isAdmin()) {
+                        return true;
+                    }
+
+                    return $this->bolehTambahKeluarga();
+                }),
+        ];
     }
 
     // ---- Aksi pemilih -------------------------------------------------------
@@ -256,7 +275,26 @@ class JelajahWilayah extends Page implements HasTable
 
     public function labelUntuk(Wilayah $wilayah): string
     {
+        if ($wilayah->level === 'rw' && $wilayah->parent?->level === 'desa') {
+            return 'RW Langsung';
+        }
+
         return Wilayah::labelLevel((string) $wilayah->level);
+    }
+
+    /** @return list<Wilayah> */
+    public function leluhurTitikAwal(): array
+    {
+        $start = $this->titikAwal(auth()->user());
+
+        return $start->ancestors()->all();
+    }
+
+    public function lokasiLengkap(?Wilayah $wilayah = null): string
+    {
+        $node = $wilayah ?? $this->nodeAktif();
+
+        return $node->alamatLengkap();
     }
 
     public function cariPersis(string $nomor): void
@@ -330,19 +368,25 @@ class JelajahWilayah extends Page implements HasTable
     /** @return Collection<int, Wilayah> */
     protected function anakDari(Wilayah $node): Collection
     {
-        return $this->cacheAnak[$node->id] ??= $node->children()->orderBy('nama')->get();
+        return $this->cacheAnak[$node->id] ??= $node->children()->with(['parent'])->orderBy('nama')->get();
     }
 
     // Label langkah mengikuti level anak bila seragam; kalau campur (mis. desa
-    // punya dusun dan RW), pakai sebutan umum.
+    // punya dusun dan RW), pakai sebutan jelas.
     /** @param Collection<int, Wilayah> $anak */
     protected function labelLangkah(Collection $anak): string
     {
         $level = $anak->pluck('level')->unique();
 
-        return $level->count() === 1
-            ? Wilayah::labelLevel((string) $level->first())
-            : 'Wilayah turunan';
+        if ($level->count() === 1) {
+            return Wilayah::labelLevel((string) $level->first());
+        }
+
+        if ($level->contains('dusun') && $level->contains('rw')) {
+            return 'Dusun atau RW Langsung';
+        }
+
+        return 'Wilayah turunan';
     }
 
     // Menghapus pilihan mulai indeks $dari (dan semua yang lebih dalam).
@@ -381,7 +425,7 @@ class JelajahWilayah extends Page implements HasTable
             return $this->titikAwalCache;
         }
 
-        if ($user !== null && $user->isSuperadmin()) {
+        if ($user !== null && ($user->isSuperadmin() || $user->isAdmin())) {
             $negara = Wilayah::where('level', 'negara')->orderBy('path')->first();
 
             abort_if($negara === null, 404, 'Wilayah akar (negara) belum ada.');

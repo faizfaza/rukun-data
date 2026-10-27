@@ -14,7 +14,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->string('username')->unique()->after('name');
-            $table->enum('role', ['superadmin', 'admin_rw', 'admin_rt'])->default('admin_rt')->after('password');
+            $table->enum('role', ['superadmin', 'admin', 'admin_rw', 'admin_rt'])->default('admin_rt')->after('password');
             $table->foreignId('id_wilayah')->nullable()->after('role')->constrained('wilayah')->nullOnDelete();
             $table->boolean('is_active')->default(true)->after('id_wilayah');
             $table->foreignId('created_by')->nullable()->after('is_active')->constrained('users')->nullOnDelete();

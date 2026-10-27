@@ -114,4 +114,76 @@ class AlurKeluargaTest extends TestCase
 
         $this->assertSame(1, Keluarga::count());
     }
+
+    public function test_superadmin_input_keluarga_dengan_cascading_wilayah(): void
+    {
+        $w = $this->seedDasar();
+        $admin = $this->makeUser('superadmin', 'superadmin', null);
+        $this->actingAs($admin);
+
+        Livewire::test(CreateKeluarga::class)
+            ->fillForm([
+                'provinsi_id' => $w['provinsi']->id,
+                'kabkota_id' => $w['kabupaten']->id,
+                'kecamatan_id' => $w['kecamatan']->id,
+                'kelurahan_id' => $w['desa']->id,
+                'rw_id' => $w['rw']->id,
+                'id_wilayah' => $w['rt1']->id,
+                'no_kk' => '6371010101000088',
+                'alamat' => 'Jl. Cascad No. 1',
+                'kode_pos' => '70711',
+                'anggota' => [
+                    [
+                        'nik' => '6371010101800088',
+                        'nama_lengkap' => 'Kepala Keluarga Cascad',
+                        'tempat_lahir' => 'Bandung',
+                        'tanggal_lahir' => '1985-05-05',
+                        'jenis_kelamin' => 'L',
+                        'status_kawin' => 'kawin',
+                        'id_agama' => 1,
+                        'id_pendidikan' => 3,
+                        'id_pekerjaan' => 2,
+                        'id_hubungan' => 1,
+                    ],
+                ],
+            ])
+            ->call('create')
+            ->assertHasNoErrors();
+
+        $keluarga = Keluarga::where('id_wilayah', $w['rt1']->id)->first();
+        $this->assertNotNull($keluarga);
+        $this->assertSame('6371010101000088', $keluarga->no_kk);
+    }
+
+    public function test_cascading_reset_anak_saat_induk_berubah(): void
+    {
+        $w = $this->seedDasar();
+        $admin = $this->makeUser('superadmin', 'superadmin', null);
+        $this->actingAs($admin);
+
+        Livewire::test(CreateKeluarga::class)
+            ->fillForm([
+                'provinsi_id' => $w['provinsi']->id,
+                'kabkota_id' => $w['kabupaten']->id,
+                'kecamatan_id' => $w['kecamatan']->id,
+                'kelurahan_id' => $w['desa']->id,
+                'rw_id' => $w['rw']->id,
+                'id_wilayah' => $w['rt1']->id,
+            ])
+            ->assertFormSet([
+                'provinsi_id' => $w['provinsi']->id,
+                'kabkota_id' => $w['kabupaten']->id,
+                'rw_id' => $w['rw']->id,
+                'id_wilayah' => $w['rt1']->id,
+            ])
+            // Ubah provinsi -> semua anak harus direset
+            ->fillForm(['provinsi_id' => null])
+            ->assertFormSet([
+                'kabkota_id' => null,
+                'kecamatan_id' => null,
+                'kelurahan_id' => null,
+                'rw_id' => null,
+                'id_wilayah' => null,
+            ]);
+    }
 }

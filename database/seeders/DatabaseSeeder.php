@@ -58,6 +58,7 @@ class DatabaseSeeder extends Seeder
         $users = [];
 
         $users['superadmin'] = $this->buatUser('superadmin', 'Superadmin', Role::Superadmin, null);
+        $users['admin'] = $this->buatUser('admin', 'Admin Wilayah', Role::Admin, null, $users['superadmin']->id);
 
         $users['adminrw01'] = $this->buatUser('adminrw01', 'Admin RW 01', Role::AdminRw, $wilayah['rw01']->id, $users['superadmin']->id);
         $users['adminrw02'] = $this->buatUser('adminrw02', 'Admin RW 02', Role::AdminRw, $wilayah['rw02']->id, $users['superadmin']->id);

@@ -26,6 +26,15 @@ class CreateKeluarga extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        $user = auth()->user();
+        if (empty($data['id_wilayah'])) {
+            if ($user?->isAdminRt() && $user->id_wilayah) {
+                $data['id_wilayah'] = $user->id_wilayah;
+            } elseif (request()->integer('id_wilayah')) {
+                $data['id_wilayah'] = request()->integer('id_wilayah');
+            }
+        }
+
         // Data repeater relasi tidak ikut getState(); dibaca dari raw state.
         $raw = $this->form->getRawState();
 

@@ -8,6 +8,7 @@ namespace App\Enums;
 enum Role: string
 {
     case Superadmin = 'superadmin';
+    case Admin = 'admin';
     case AdminRw = 'admin_rw';
     case AdminRt = 'admin_rt';
 
@@ -15,29 +16,32 @@ enum Role: string
     {
         return match ($this) {
             self::Superadmin => 'Superadmin',
+            self::Admin => 'Admin',
             self::AdminRw => 'Admin RW',
             self::AdminRt => 'Admin RT',
         };
     }
 
     // Level wilayah yang wajib dimiliki pengguna peran ini (null = tanpa
-    // wilayah, yaitu superadmin).
+    // wilayah, yaitu superadmin dan admin).
     public function levelWilayah(): ?string
     {
         return match ($this) {
-            self::Superadmin => null,
+            self::Superadmin, self::Admin => null,
             self::AdminRw => 'rw',
             self::AdminRt => 'rt',
         };
     }
 
-    // Keputusan 6: akun hanya dibuat oleh peran di atasnya.
+    // Superadmin: bisa buat akun untuk Petugas RT, RW, Admin, dan Superadmin.
+    // Admin: bisa buat apa yang superadmin lakukan kecuali tidak dapat membuat admin lagi.
     /** @return list<Role> */
     public function bolehMembuat(): array
     {
         return match ($this) {
-            self::Superadmin => [self::AdminRw, self::AdminRt],
-            self::AdminRw => [self::AdminRt],
+            self::Superadmin => [self::Superadmin, self::Admin, self::AdminRw, self::AdminRt],
+            self::Admin => [self::AdminRw, self::AdminRt],
+            self::AdminRw => [],
             self::AdminRt => [],
         };
     }

@@ -20,7 +20,7 @@ final class WilayahAccess
             return null;
         }
 
-        if ($user->isSuperadmin()) {
+        if ($user->isSuperadmin() || $user->isAdmin()) {
             return null;
         }
 
@@ -47,13 +47,13 @@ final class WilayahAccess
 
     // Semua id wilayah (semua level) di dalam subtree pengguna, termasuk
     // wilayah pengguna sendiri. Dipakai untuk membatasi pilihan wilayah saat
-    // membuat akun. null = tanpa batas (superadmin).
+    // membuat akun. null = tanpa batas (superadmin dan admin).
     /**
      * @return list<int>|null
      */
     public static function allowedWilayahIds(?User $user): ?array
     {
-        if ($user === null || $user->isSuperadmin()) {
+        if ($user === null || $user->isSuperadmin() || $user->isAdmin()) {
             return null;
         }
 

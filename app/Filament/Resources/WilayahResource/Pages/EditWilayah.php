@@ -14,4 +14,11 @@ class EditWilayah extends EditRecord
     {
         return [DeleteAction::make()];
     }
+
+    protected function getRedirectUrl(): string
+    {
+        $parent = $this->record->parent_id;
+
+        return WilayahResource::getUrl('index', array_filter(['parent' => $parent]));
+    }
 }

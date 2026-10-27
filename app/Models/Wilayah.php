@@ -142,10 +142,24 @@ class Wilayah extends Model
         return self::query()->where('path', 'like', $this->path.'%')->whereKeyNot($this->getKey());
     }
 
-    // Rantai induk untuk kolom daftar ("Indonesia › Jawa Barat › …").
+    // Rantai induk terformat rapi dengan koma (spesifik ke umum), tanpa simbol panah '>' yang membingungkan.
     public function rantaiIndukNama(): string
     {
-        return $this->ancestors()->pluck('nama')->implode(' › ');
+        $ancestors = $this->ancestors()
+            ->reject(fn (Wilayah $w): bool => $w->level === 'negara')
+            ->pluck('nama')
+            ->reverse()
+            ->all();
+
+        return implode(', ', $ancestors);
+    }
+
+    // Alamat lengkap berbasis koma (misal: "RT 01, RW 01, Dusun Krajan, Desa Bojongsoang, Kecamatan Bojongsoang, Kabupaten Bandung, Jawa Barat").
+    public function alamatLengkap(): string
+    {
+        $rantai = $this->rantaiIndukNama();
+
+        return $rantai !== '' ? "{$this->nama}, {$rantai}" : $this->nama;
     }
 
     // Mengembalikan pesan kesalahan bila kombinasi level + induk tidak sah,

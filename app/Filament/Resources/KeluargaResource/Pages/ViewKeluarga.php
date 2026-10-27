@@ -33,7 +33,12 @@ class ViewKeluarga extends ViewRecord
                         ->formatStateUsing(fn (?string $state, Keluarga $record): ?string => auth()->user()?->bolehLihatDataPenuh()
                             ? $state
                             : $record->no_kk_masked),
-                    TextEntry::make('wilayah.nama')->label('RT'),
+                    TextEntry::make('wilayah.nama')
+                        ->label('RT & Wilayah')
+                        ->formatStateUsing(fn (?string $state, Keluarga $record): string => $record->wilayah
+                            ? $record->wilayah->alamatLengkap()
+                            : '—'
+                        ),
                     TextEntry::make('alamat')->label('Alamat')->columnSpanFull(),
                     TextEntry::make('kode_pos')->label('Kode pos'),
                 ])->columns(3),

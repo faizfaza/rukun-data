@@ -31,22 +31,30 @@ class RoleAksesTest extends TestCase
         return ['rw' => $rwLuar, 'rt' => $rtLuar];
     }
 
-    public function test_admin_rw_tidak_bisa_input_edit_hapus(): void
+    public function test_admin_rw_bisa_input_edit_keluarga_di_wilayahnya(): void
     {
         $w = $this->seedDasar();
+        $luar = $this->buatRwLuar($w);
         $superadmin = $this->makeUser('sa', 'superadmin', null);
         $adminRw = $this->makeUser('rw', 'admin_rw', $w['rw']->id);
 
         $keluarga = $this->makeKeluarga($w['rt1']->id, '1111111111111111', [
             ['nik' => '1111111111111111', 'hubungan' => 1],
         ], $superadmin->id);
+        $keluargaLuar = $this->makeKeluarga($luar['rt']->id, '2222222222222222', [
+            ['nik' => '2222222222222222', 'hubungan' => 1],
+        ], $superadmin->id);
 
-        // Bisa melihat, tetapi tidak boleh membuat/mengubah/menghapus.
+        // RW boleh membuat KK dan mengelola keluarga di dalam wilayahnya
         $this->assertTrue($adminRw->can('view', $keluarga));
-        $this->assertFalse($adminRw->can('create', Keluarga::class));
-        $this->assertFalse($adminRw->can('update', $keluarga));
-        $this->assertFalse($adminRw->can('delete', $keluarga));
+        $this->assertTrue($adminRw->can('create', Keluarga::class));
+        $this->assertTrue($adminRw->can('update', $keluarga));
+        $this->assertTrue($adminRw->can('delete', $keluarga));
         $this->assertFalse($adminRw->can('forceDelete', $keluarga));
+
+        // Tidak boleh mengelola keluarga di luar RW-nya
+        $this->assertFalse($adminRw->can('update', $keluargaLuar));
+        $this->assertFalse($adminRw->can('delete', $keluargaLuar));
 
         // admin_rt di RT yang sama boleh input/edit.
         $adminRt = $this->makeUser('rt', 'admin_rt', $w['rt1']->id);
@@ -54,49 +62,34 @@ class RoleAksesTest extends TestCase
         $this->assertTrue($adminRt->can('update', $keluarga));
     }
 
-    public function test_admin_rw_tidak_bisa_membuat_akun_di_luar_rw(): void
+    public function test_admin_rw_tidak_bisa_mengakses_manajemen_pengguna(): void
     {
         $w = $this->seedDasar();
         $adminRw = $this->makeUser('rw', 'admin_rw', $w['rw']->id);
-        $luar = $this->buatRwLuar($w);
 
         $this->actingAs($adminRw);
-
-        Livewire::test(CreateUser::class)
-            ->fillForm([
-                'username' => 'rt-luar',
-                'name' => 'RT Luar',
-                'password' => 'password',
-                'role' => 'admin_rt',
-                'id_wilayah' => $luar['rt']->id,
-                'is_active' => true,
-            ])
-            ->call('create')
-            ->assertHasFormErrors(['id_wilayah']);
-
-        $this->assertDatabaseMissing('users', ['username' => 'rt-luar']);
+        $this->assertFalse(UserResource::canAccess());
     }
 
-    public function test_admin_rw_tidak_bisa_membuat_role_admin_rw(): void
+    public function test_admin_tidak_bisa_membuat_role_admin(): void
     {
         $w = $this->seedDasar();
-        $adminRw = $this->makeUser('rw', 'admin_rw', $w['rw']->id);
+        $admin = $this->makeUser('admin', 'admin', null);
 
-        $this->actingAs($adminRw);
+        $this->actingAs($admin);
 
         Livewire::test(CreateUser::class)
             ->fillForm([
-                'username' => 'rw-baru',
-                'name' => 'RW Baru',
+                'username' => 'admin-baru',
+                'name' => 'Admin Baru',
                 'password' => 'password',
-                'role' => 'admin_rw',
-                'id_wilayah' => $w['rw']->id,
+                'role' => 'admin',
                 'is_active' => true,
             ])
             ->call('create')
             ->assertHasFormErrors(['role']);
 
-        $this->assertDatabaseMissing('users', ['username' => 'rw-baru']);
+        $this->assertDatabaseMissing('users', ['username' => 'admin-baru']);
     }
 
     public function test_wilayah_akun_harus_cocok_level(): void
@@ -201,30 +194,38 @@ class RoleAksesTest extends TestCase
             ->assertSee('6371010101000001', false);
     }
 
-    public function test_lingkup_akun_superadmin_vs_admin_rw(): void
+    public function test_lingkup_akun_superadmin_dan_admin(): void
     {
         $w = $this->seedDasar();
         $luar = $this->buatRwLuar($w);
 
         $superadmin = $this->makeUser('sa', 'superadmin', null);
+        $admin = $this->makeUser('admin', 'admin', null);
         $adminRw = $this->makeUser('rw', 'admin_rw', $w['rw']->id);
         $this->makeUser('rt1', 'admin_rt', $w['rt1']->id);
         $this->makeUser('rt2', 'admin_rt', $w['rt2']->id);
         $this->makeUser('rt-luar', 'admin_rt', $luar['rt']->id);
 
         $this->actingAs($superadmin);
-        $this->assertSame(5, UserResource::getEloquentQuery()->count());
+        $this->assertSame(6, UserResource::getEloquentQuery()->count());
+
+        $this->actingAs($admin);
+        $this->assertSame(6, UserResource::getEloquentQuery()->count());
 
         $this->actingAs($adminRw);
-        $this->assertSame(2, UserResource::getEloquentQuery()->count());
+        $this->assertSame(0, UserResource::getEloquentQuery()->count());
     }
 
-    public function test_menu_wilayah_bukan_untuk_admin_rw(): void
+    public function test_menu_wilayah_bisa_diakses_admin_rw(): void
     {
         $w = $this->seedDasar();
         $adminRw = $this->makeUser('rw', 'admin_rw', $w['rw']->id);
 
         $this->actingAs($adminRw);
+        $this->assertTrue(WilayahResource::canAccess());
+
+        $adminRt = $this->makeUser('rt', 'admin_rt', $w['rt1']->id);
+        $this->actingAs($adminRt);
         $this->assertFalse(WilayahResource::canAccess());
     }
 

@@ -24,6 +24,8 @@ use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -53,37 +55,228 @@ class KeluargaResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
+            Section::make('Wilayah Penugasan RT')
+                ->description(fn (): string => auth()->user()?->isSuperadmin() || auth()->user()?->isAdmin()
+                    ? 'Pilih wilayah secara bertahap (terurut) mulai dari Provinsi hingga RT tujuan.'
+                    : 'Wilayah penugasan RT tempat keluarga ini didaftarkan.'
+                )
+                ->icon('heroicon-o-map-pin')
+                ->schema([
+                    Select::make('provinsi_id')
+                        ->label('1. Provinsi')
+                        ->options(fn (): array => Wilayah::where('level', 'provinsi')->orderBy('nama')->pluck('nama', 'id')->all())
+                        ->searchable()
+                        ->preload()
+                        ->live()
+                        ->dehydrated(false)
+                        ->visible(fn (): bool => (bool) (auth()->user()?->isSuperadmin() || auth()->user()?->isAdmin()))
+                        ->disabled(fn (): bool => (bool) request()->integer('id_wilayah'))
+                        ->afterStateUpdated(function (Set $set): void {
+                            $set('kabkota_id', null);
+                            $set('kecamatan_id', null);
+                            $set('kelurahan_id', null);
+                            $set('rw_id', null);
+                            $set('id_wilayah', null);
+                        }),
+
+                    Select::make('kabkota_id')
+                        ->label('2. Kabupaten/Kota')
+                        ->options(fn (Get $get): array => Wilayah::where('level', 'kabupaten_kota')
+                            ->when($get('provinsi_id'), fn (Builder $q, $pid): Builder => $q->where('parent_id', $pid))
+                            ->orderBy('nama')
+                            ->pluck('nama', 'id')
+                            ->all()
+                        )
+                        ->searchable()
+                        ->preload()
+                        ->live()
+                        ->dehydrated(false)
+                        ->visible(fn (): bool => (bool) (auth()->user()?->isSuperadmin() || auth()->user()?->isAdmin()))
+                        ->disabled(fn (Get $get): bool => (bool) request()->integer('id_wilayah') || blank($get('provinsi_id')))
+                        ->afterStateUpdated(function (Set $set): void {
+                            $set('kecamatan_id', null);
+                            $set('kelurahan_id', null);
+                            $set('rw_id', null);
+                            $set('id_wilayah', null);
+                        }),
+
+                    Select::make('kecamatan_id')
+                        ->label('3. Kecamatan')
+                        ->options(fn (Get $get): array => Wilayah::where('level', 'kecamatan')
+                            ->when($get('kabkota_id'), fn (Builder $q, $kid): Builder => $q->where('parent_id', $kid))
+                            ->orderBy('nama')
+                            ->pluck('nama', 'id')
+                            ->all()
+                        )
+                        ->searchable()
+                        ->preload()
+                        ->live()
+                        ->dehydrated(false)
+                        ->visible(fn (): bool => (bool) (auth()->user()?->isSuperadmin() || auth()->user()?->isAdmin()))
+                        ->disabled(fn (Get $get): bool => (bool) request()->integer('id_wilayah') || blank($get('kabkota_id')))
+                        ->afterStateUpdated(function (Set $set): void {
+                            $set('kelurahan_id', null);
+                            $set('rw_id', null);
+                            $set('id_wilayah', null);
+                        }),
+
+                    Select::make('kelurahan_id')
+                        ->label('4. Desa/Kelurahan')
+                        ->options(fn (Get $get): array => Wilayah::where('level', 'desa')
+                            ->when($get('kecamatan_id'), fn (Builder $q, $kid): Builder => $q->where('parent_id', $kid))
+                            ->orderBy('nama')
+                            ->pluck('nama', 'id')
+                            ->all()
+                        )
+                        ->searchable()
+                        ->preload()
+                        ->live()
+                        ->dehydrated(false)
+                        ->visible(fn (): bool => (bool) (auth()->user()?->isSuperadmin() || auth()->user()?->isAdmin()))
+                        ->disabled(fn (Get $get): bool => (bool) request()->integer('id_wilayah') || blank($get('kecamatan_id')))
+                        ->afterStateUpdated(function (Set $set): void {
+                            $set('rw_id', null);
+                            $set('id_wilayah', null);
+                        }),
+
+                    Select::make('rw_id')
+                        ->label('5. RW')
+                        ->options(function (Get $get): array {
+                            $desaId = $get('kelurahan_id');
+                            if (! $desaId) {
+                                return [];
+                            }
+
+                            $dusunIds = Wilayah::where('level', 'dusun')
+                                ->where('parent_id', $desaId)
+                                ->pluck('id')
+                                ->all();
+
+                            return Wilayah::where('level', 'rw')
+                                ->where(function (Builder $q) use ($desaId, $dusunIds): void {
+                                    $q->where('parent_id', $desaId);
+                                    if ($dusunIds !== []) {
+                                        $q->orWhereIn('parent_id', $dusunIds);
+                                    }
+                                })
+                                ->with('parent')
+                                ->orderBy('kode')
+                                ->get()
+                                ->mapWithKeys(function (Wilayah $w): array {
+                                    if ($w->parent?->level === 'dusun') {
+                                        $dusunNama = str_starts_with(strtolower($w->parent->nama), 'dusun')
+                                            ? $w->parent->nama
+                                            : "Dusun {$w->parent->nama}";
+
+                                        return [$w->id => "{$w->nama} ({$dusunNama})"];
+                                    }
+
+                                    return [$w->id => "{$w->nama} (RW Langsung)"];
+                                })
+                                ->all();
+                        })
+                        ->searchable()
+                        ->preload()
+                        ->live()
+                        ->dehydrated(false)
+                        ->visible(fn (): bool => (bool) (auth()->user()?->isSuperadmin() || auth()->user()?->isAdmin()))
+                        ->disabled(fn (Get $get): bool => (bool) request()->integer('id_wilayah') || blank($get('kelurahan_id')))
+                        ->afterStateUpdated(function (Set $set): void {
+                            $set('id_wilayah', null);
+                        }),
+
+                    Select::make('id_wilayah')
+                        ->label(fn (): string => auth()->user()?->isSuperadmin() || auth()->user()?->isAdmin() ? '6. RT (Tujuan)' : 'RT')
+                        ->options(fn (Get $get, ?Keluarga $record): array => static::rtOptions($get('rw_id'), $get('id_wilayah') ?: $record?->id_wilayah ?: request()->integer('id_wilayah')))
+                        ->searchable()
+                        ->preload()
+                        ->live()
+                        ->required()
+                        ->default(fn (): ?int => auth()->user()?->isAdminRt()
+                            ? auth()->user()->id_wilayah
+                            : (request()->integer('id_wilayah') ?: null)
+                        )
+                        ->disabled(fn (Get $get): bool => (bool) request()->integer('id_wilayah')
+                            || (bool) auth()->user()?->isAdminRt()
+                            || ((auth()->user()?->isSuperadmin() || auth()->user()?->isAdmin()) && blank($get('rw_id')) && blank($get('id_wilayah')))
+                        )
+                        ->dehydrated()
+                        ->afterStateHydrated(function (Select $component, ?int $state, Set $set, ?Keluarga $record): void {
+                            $targetId = $state ?? $record?->id_wilayah ?? request()->integer('id_wilayah');
+                            if (! $targetId) {
+                                return;
+                            }
+                            $target = Wilayah::with('parent')->find($targetId);
+                            if (! $target) {
+                                return;
+                            }
+                            $ancestors = $target->ancestors()->keyBy('level');
+                            $set('provinsi_id', $ancestors->get('provinsi')?->id);
+                            $set('kabkota_id', $ancestors->get('kabupaten_kota')?->id);
+                            $set('kecamatan_id', $ancestors->get('kecamatan')?->id);
+                            $set('kelurahan_id', $ancestors->get('desa')?->id);
+                            $set('rw_id', $ancestors->get('rw')?->id);
+                        })
+                        ->afterStateUpdated(function (?int $state, Set $set): void {
+                            if (! $state) {
+                                return;
+                            }
+                            $target = Wilayah::with('parent')->find($state);
+                            if (! $target) {
+                                return;
+                            }
+                            $ancestors = $target->ancestors()->keyBy('level');
+                            $set('provinsi_id', $ancestors->get('provinsi')?->id);
+                            $set('kabkota_id', $ancestors->get('kabupaten_kota')?->id);
+                            $set('kecamatan_id', $ancestors->get('kecamatan')?->id);
+                            $set('kelurahan_id', $ancestors->get('desa')?->id);
+                            $set('rw_id', $ancestors->get('rw')?->id);
+                        })
+                        ->helperText(function (Get $get, ?Keluarga $record): ?string {
+                            $user = auth()->user();
+                            if ($user?->isAdminRt() && $user->wilayah) {
+                                return "Wilayah penugasan RT Anda: {$user->wilayah->alamatLengkap()}";
+                            }
+                            if ($user?->isAdminRw() && $user->wilayah) {
+                                return "Pilih RT di bawah RW penugasan Anda: {$user->wilayah->alamatLengkap()}";
+                            }
+
+                            $rtId = $get('id_wilayah') ?: $record?->id_wilayah ?: request()->integer('id_wilayah');
+                            if (! $rtId) {
+                                return 'Pilih langkah 1 sampai 5 untuk memfilter RT tujuan.';
+                            }
+                            $rt = Wilayah::find($rtId);
+                            if (! $rt) {
+                                return null;
+                            }
+
+                            return '📍 Lokasi Terpilih: '.$rt->alamatLengkap();
+                        })
+                        ->columnSpan(fn (): int => auth()->user()?->isSuperadmin() || auth()->user()?->isAdmin() ? 1 : 3),
+                ])
+                ->columns(3),
+
             // DESIGN.md §7.3: dua bagian pendek (data keluarga + data ekonomi)
             // berbagi satu baris, sedangkan bagian anggota dibuat lebar penuh
             // supaya daftar anggota yang panjang tidak menyisakan ruang kosong.
             Grid::make(2)->schema([
                 Section::make('Data Keluarga')->schema([
-                    Select::make('id_wilayah')
-                        ->label('RT')
-                        ->options(static::rtOptions())
-                        ->required()
-                        ->searchable()
-                        ->preload()
-                        // Fase 3.3: saat dibuka dari node RT, RT terpilih dan terkunci.
-                        ->default(fn (): ?int => request()->integer('id_wilayah') ?: null)
-                        ->disabled(fn (): bool => (bool) request()->integer('id_wilayah'))
-                        ->dehydrated(),
                     TextInput::make('no_kk')
                         ->label('No KK')
                         ->required()
                         ->length(16)
                         ->rule('regex:/^[0-9]{16}$/')
                         ->validationMessages(['regex' => 'No KK harus 16 digit angka.']),
-                    Textarea::make('alamat')
-                        ->label('Alamat')
-                        ->required()
-                        ->maxLength(500)
-                        ->columnSpanFull(),
                     TextInput::make('kode_pos')
                         ->label('Kode Pos')
                         ->required()
                         ->length(5)
                         ->rule('regex:/^[0-9]{5}$/'),
+                    Textarea::make('alamat')
+                        ->label('Alamat')
+                        ->required()
+                        ->maxLength(500)
+                        ->columnSpanFull(),
                 ])->columns(2),
 
                 Section::make('Data Ekonomi')->schema([
@@ -290,18 +483,56 @@ class KeluargaResource extends Resource
         });
     }
 
-    // Pilihan RT dibatasi ke wilayah pengguna (PRD F2); admin melihat semua.
+    // Pilihan RT dibatasi ke wilayah pengguna (PRD F2); mendukung filter bertingkat rwId.
     /** @return array<int, string> */
-    public static function rtOptions(): array
+    public static function rtOptions(?int $rwId = null, ?int $selectedId = null): array
     {
-        $ids = WilayahAccess::allowedRtIds(auth()->user());
+        $user = auth()->user();
 
-        $query = Wilayah::where('level', 'rt')->orderBy('kode');
+        // 1. Petugas RT: hanya RT penugasan
+        if ($user?->isAdminRt() && $user->id_wilayah) {
+            $rt = $user->wilayah;
 
+            return $rt ? [$rt->id => "{$rt->nama} ({$rt->rantaiIndukNama()})"] : [];
+        }
+
+        // 2. Petugas RW: hanya RT di bawah RW penugasan
+        if ($user?->isAdminRw() && $user->id_wilayah) {
+            return Wilayah::where('level', 'rt')
+                ->where('parent_id', $user->id_wilayah)
+                ->orderBy('kode')
+                ->pluck('nama', 'id')
+                ->all();
+        }
+
+        // 3. Jika ada RW terpilih pada cascading dropdown
+        if ($rwId) {
+            return Wilayah::where('level', 'rt')
+                ->where('parent_id', $rwId)
+                ->orderBy('kode')
+                ->pluck('nama', 'id')
+                ->all();
+        }
+
+        // 4. Jika ada selectedId (misal edit atau dipanggil via query/test)
+        if ($selectedId) {
+            $rt = Wilayah::find($selectedId);
+            if ($rt) {
+                return [$rt->id => "{$rt->nama} ({$rt->rantaiIndukNama()})"];
+            }
+        }
+
+        // 5. Fallback semua RT yang diizinkan
+        $ids = WilayahAccess::allowedRtIds($user);
+        $query = Wilayah::where('level', 'rt')->orderBy('path');
         if ($ids !== null) {
             $query->whereIn('id', $ids);
         }
 
-        return $query->pluck('nama', 'id')->all();
+        return $query->get()
+            ->mapWithKeys(fn (Wilayah $w): array => [
+                $w->id => "{$w->nama} ({$w->rantaiIndukNama()})",
+            ])
+            ->all();
     }
 }

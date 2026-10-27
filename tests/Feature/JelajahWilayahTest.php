@@ -209,7 +209,7 @@ class JelajahWilayahTest extends TestCase
         $this->get('/admin/jelajah')->assertOk()->assertSee('Tambah keluarga');
     }
 
-    public function test_tombol_tambah_tidak_untuk_admin_rw(): void
+    public function test_tombol_tambah_untuk_admin_rw_setelah_sampai_rt(): void
     {
         $w = $this->seedDasar();
         $this->actingAs($this->makeUser('rw', 'admin_rw', $w['rw']->id));
@@ -217,9 +217,9 @@ class JelajahWilayahTest extends TestCase
         $c = $this->bukaPada($w['rw']);
         $this->assertFalse($c->instance()->bolehTambahKeluarga());
 
-        // Bahkan setelah sampai RT, admin_rw tetap tidak boleh menambah.
+        // Setelah sampai RT, admin_rw boleh menambah keluarga (tugas petugas RT).
         $c->call('pilih', 0, $w['rt1']->id);
-        $this->assertFalse($c->instance()->bolehTambahKeluarga());
+        $this->assertTrue($c->instance()->bolehTambahKeluarga());
     }
 
     public function test_tombol_tambah_untuk_superadmin_setelah_sampai_rt(): void
@@ -237,6 +237,23 @@ class JelajahWilayahTest extends TestCase
 
         $this->assertTrue($c->instance()->bolehTambahKeluarga());
         $this->assertSame($w['rt1']->id, $c->instance()->nodeTerpilihRt()->id);
+        $c->assertSee('Tambah keluarga di RT 001');
+    }
+
+    public function test_leluhur_lengkap_terlihat_pada_admin_rt(): void
+    {
+        $w = $this->seedDasar();
+        $this->actingAs($this->makeUser('rt', 'admin_rt', $w['rt1']->id));
+
+        $this->get('/admin/jelajah')
+            ->assertOk()
+            ->assertSee('Wilayah Penugasan RT Anda')
+            ->assertSee('RW 001')
+            ->assertSee('Desa Uji')
+            ->assertSee('Kecamatan Uji')
+            ->assertSee('Kabupaten Uji')
+            ->assertSee('Provinsi Uji')
+            ->assertSee('Negara Uji');
     }
 
     public function test_pencarian_no_kk_persis(): void

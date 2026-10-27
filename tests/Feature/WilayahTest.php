@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use App\Filament\Resources\WilayahResource;
+use App\Filament\Resources\WilayahResource\Pages\CreateWilayah;
+use App\Filament\Resources\WilayahResource\Pages\ListWilayah;
 use App\Models\Wilayah;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 // Fase 1.6: hierarki, path, keunikan, aturan hapus, dan akses resource.
@@ -140,6 +143,26 @@ class WilayahTest extends TestCase
         $this->get('/admin/wilayah')->assertOk();
     }
 
+    public function test_admin_mengakses_resource_wilayah(): void
+    {
+        $this->seedDasar();
+        $admin = $this->makeUser('admin', 'admin', null);
+
+        $this->actingAs($admin);
+        $this->assertTrue(WilayahResource::canAccess());
+        $this->get('/admin/wilayah')->assertOk();
+    }
+
+    public function test_admin_rw_mengakses_resource_wilayah(): void
+    {
+        $w = $this->seedDasar();
+        $adminRw = $this->makeUser('rw', 'admin_rw', $w['rw']->id);
+
+        $this->actingAs($adminRw);
+        $this->assertTrue(WilayahResource::canAccess());
+        $this->get('/admin/wilayah')->assertOk();
+    }
+
     public function test_admin_rt_ditolak_mengakses_resource_wilayah(): void
     {
         $w = $this->seedDasar();
@@ -148,5 +171,93 @@ class WilayahTest extends TestCase
         $this->actingAs($rt);
         $this->assertFalse(WilayahResource::canAccess());
         $this->get('/admin/wilayah')->assertForbidden();
+    }
+
+    public function test_hirarki_wilayah_akar_hanya_menampilkan_negara(): void
+    {
+        $w = $this->seedDasar();
+        $superadmin = $this->makeUser('sa', 'superadmin', null);
+        $this->actingAs($superadmin);
+
+        Livewire::test(ListWilayah::class)
+            ->assertCanSeeTableRecords([$w['negara']])
+            ->assertCanNotSeeTableRecords([$w['provinsi'], $w['kabupaten'], $w['rt1']]);
+    }
+
+    public function test_hirarki_drilldown_ke_anak_wilayah(): void
+    {
+        $w = $this->seedDasar();
+        $superadmin = $this->makeUser('sa', 'superadmin', null);
+        $this->actingAs($superadmin);
+
+        // Buka Indonesia -> tampilkan provinsi di bawahnya
+        Livewire::test(ListWilayah::class, ['parentId' => $w['negara']->id])
+            ->assertCanSeeTableRecords([$w['provinsi']])
+            ->assertCanNotSeeTableRecords([$w['negara'], $w['kabupaten'], $w['rt1']])
+            // Buka Provinsi -> tampilkan kabupaten di bawahnya
+            ->call('bukaWilayah', $w['provinsi']->id)
+            ->assertCanSeeTableRecords([$w['kabupaten']])
+            ->assertCanNotSeeTableRecords([$w['provinsi'], $w['kecamatan'], $w['rt1']])
+            // Kembali ke induk -> kembali ke provinsi
+            ->call('kembaliKeInduk')
+            ->assertCanSeeTableRecords([$w['provinsi']])
+            // Kembali ke akar -> kembali ke negara
+            ->call('keAkar')
+            ->assertCanSeeTableRecords([$w['negara']]);
+    }
+
+    public function test_mode_semua_menampilkan_seluruh_wilayah(): void
+    {
+        $w = $this->seedDasar();
+        $superadmin = $this->makeUser('sa', 'superadmin', null);
+        $this->actingAs($superadmin);
+
+        Livewire::test(ListWilayah::class, ['mode' => 'semua'])
+            ->assertCanSeeTableRecords([$w['negara'], $w['provinsi'], $w['kabupaten'], $w['rt1']]);
+    }
+
+    public function test_create_wilayah_otomatis_mengisi_level_dan_parent_dari_query(): void
+    {
+        $w = $this->seedDasar();
+        $superadmin = $this->makeUser('sa', 'superadmin', null);
+        $this->actingAs($superadmin);
+
+        // Ketika berada di Jawa Barat (provinsi), tambah wilayah menyarankan kabupaten_kota
+        Livewire::withQueryParams(['parent_id' => $w['provinsi']->id])
+            ->test(CreateWilayah::class, ['parentId' => $w['provinsi']->id])
+            ->assertSchemaStateSet([
+                'level' => 'kabupaten_kota',
+                'parent_id' => $w['provinsi']->id,
+            ]);
+    }
+
+    public function test_pemisahan_tab_ketika_desa_memiliki_dusun_dan_rw_langsung(): void
+    {
+        $w = $this->seedDasar();
+        $superadmin = $this->makeUser('sa', 'superadmin', null);
+        $this->actingAs($superadmin);
+
+        // Di bawah Desa Uji, tambahkan wilayah Dusun (sehingga desa punya Dusun Krajan dan RW 001 langsung)
+        $dusun = Wilayah::create([
+            'kode' => 'T.1.1.1.1.D1',
+            'nama' => 'Dusun Krajan',
+            'level' => 'dusun',
+            'parent_id' => $w['desa']->id,
+        ]);
+
+        $rwLangsung = $w['rw']; // RW 001 yang menginduk langsung ke Desa Uji
+
+        Livewire::test(ListWilayah::class, ['parentId' => $w['desa']->id])
+            // Tab 'semua': melihat kedua turunan
+            ->assertCanSeeTableRecords([$dusun, $rwLangsung])
+            ->assertSee('RW Langsung')
+            // Beralih ke tab 'dusun'
+            ->set('activeTab', 'dusun')
+            ->assertCanSeeTableRecords([$dusun])
+            ->assertCanNotSeeTableRecords([$rwLangsung])
+            // Beralih ke tab 'rw'
+            ->set('activeTab', 'rw')
+            ->assertCanSeeTableRecords([$rwLangsung])
+            ->assertCanNotSeeTableRecords([$dusun]);
     }
 }

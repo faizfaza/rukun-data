@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\AnggotaResource\Pages;
 
 use App\Filament\Resources\AnggotaResource;
+use App\Filament\Schemas\Profil;
 use App\Models\Anggota;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -44,6 +45,7 @@ class ViewAnggota extends ViewRecord
                     TextEntry::make('penghasilan_bulanan')->label('Penghasilan/bulan (Rp)'),
                 ])->columns(3),
 
+            ...Profil::detail(),
             Section::make('Keluarga')->schema([
                 TextEntry::make('keluarga.no_kk')
                     ->label('No KK')

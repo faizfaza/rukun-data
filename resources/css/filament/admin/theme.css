@@ -104,3 +104,12 @@
 .fi-in-entry-content {
     font-variant-numeric: tabular-nums;
 }
+
+/* Palet semantik: teal tindakan, blue informasi, violet kategori, amber perhatian. */
+:root { --rukun-bg: #f1f5fc; --rukun-info: #2563eb; --rukun-violet: #7c3aed; --rukun-warning: #b45309; }
+.fi-section { border-top: 3px solid var(--rukun-info); }
+.fi-wi-stats-overview-stat:nth-child(4n + 1) { border-top: 3px solid #0f766e; }
+.fi-wi-stats-overview-stat:nth-child(4n + 2) { border-top: 3px solid #2563eb; }
+.fi-wi-stats-overview-stat:nth-child(4n + 3) { border-top: 3px solid #7c3aed; }
+.fi-wi-stats-overview-stat:nth-child(4n) { border-top: 3px solid #b45309; }
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }

@@ -5,9 +5,31 @@ namespace App\Filament\Resources\UserResource\Pages;
 use App\Filament\Resources\UserResource;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 
 class EditUser extends EditRecord
 {
+    protected function getRedirectUrl(): string
+    {
+        return UserResource::getUrl('index', array_filter(['wilayah' => $this->asalKonteks ?: $this->record?->id_wilayah]));
+    }
+
+    #[Locked]
+    public ?int $asalKonteks = null;
+
+    public function mount(int|string $record): void
+    {
+        $this->asalKonteks = request()->integer('context') ?: null;
+        parent::mount($record);
+    }
+
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $data['identitas'] = $this->record->identitas;
+
+        return $data;
+    }
+
     protected static string $resource = UserResource::class;
 
     // Tidak ada hapus akun: baris tidak disediakan.
@@ -20,7 +42,7 @@ class EditUser extends EditRecord
     {
         $record = $this->getRecord();
 
-        // Pengguna tidak boleh mengubah peran atau menonaktifkan dirinya sendiri.
+        // Admin tidak boleh mengubah peran atau menonaktifkan dirinya sendiri.
         if ($record->is(auth()->user())) {
             $data['role'] = $record->role->value;
             $data['is_active'] = $record->is_active;
@@ -30,7 +52,7 @@ class EditUser extends EditRecord
             }
         }
 
-        // Pengguna tidak berwenang menonaktifkan akun jika tidak memiliki izin deactivate (misal: admin menonaktifkan admin lain atau superadmin).
+        // Admin tidak berwenang menonaktifkan akun jika tidak memiliki izin deactivate (misal: admin menonaktifkan admin lain atau superadmin).
         $currentUser = auth()->user();
         if ($currentUser && ! $currentUser->can('deactivate', $record)) {
             $data['is_active'] = $record->is_active;

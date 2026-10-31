@@ -10,12 +10,26 @@ use App\Support\SensitiveData;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 
 // PRD §6: validasi No KK/NIK di awal (format, duplikat aktif, arsip untuk
 // pemulihan), tepat satu kepala, lalu simpan satu transaksi. Filament
 // membungkus pembuatan record + relasi dalam transaksi database.
 class CreateKeluarga extends CreateRecord
 {
+    #[Locked]
+    public ?int $wilayahKonteks = null;
+
+    #[Locked]
+    public ?int $asalKonteks = null;
+
+    public function mount(): void
+    {
+        $this->wilayahKonteks = request()->integer('id_wilayah') ?: null;
+        $this->asalKonteks = request()->integer('context') ?: null;
+        parent::mount();
+    }
+
     protected static string $resource = KeluargaResource::class;
 
     // DESIGN.md §7.3.5/§9.2: tombol simpan bernama "Simpan keluarga".
@@ -26,12 +40,16 @@ class CreateKeluarga extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        $target = $this->wilayahKonteks;
+        if ($target && ! empty($data['id_wilayah']) && (int) $data['id_wilayah'] !== $target) {
+            throw ValidationException::withMessages(['data.id_wilayah' => 'Wilayah harus sesuai konteks pembuatan keluarga.']);
+        }
         $user = auth()->user();
         if (empty($data['id_wilayah'])) {
             if ($user?->isAdminRt() && $user->id_wilayah) {
                 $data['id_wilayah'] = $user->id_wilayah;
-            } elseif (request()->integer('id_wilayah')) {
-                $data['id_wilayah'] = request()->integer('id_wilayah');
+            } elseif ($this->wilayahKonteks) {
+                $data['id_wilayah'] = $this->wilayahKonteks;
             }
         }
 

@@ -21,9 +21,7 @@ class WilayahPolicy
         }
 
         if ($user->isAdminRw()) {
-            return $wilayah->level === 'rt'
-                || $wilayah->id === $user->id_wilayah
-                || $wilayah->parent_id === $user->id_wilayah;
+            return $wilayah->id === $user->id_wilayah || ($wilayah->level === 'rt' && $wilayah->parent_id === $user->id_wilayah);
         }
 
         return false;

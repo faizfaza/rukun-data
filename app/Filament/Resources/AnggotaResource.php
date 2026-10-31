@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Pages\JelajahWilayah;
 use App\Filament\Resources\AnggotaResource\Pages;
+use App\Filament\Schemas\Profil;
 use App\Models\Anggota;
 use App\Models\RefAgama;
 use App\Models\RefHubungan;
@@ -72,7 +73,7 @@ class AnggotaResource extends Resource
                     ->label('Jenis kelamin')
                     ->options(['L' => 'Laki-laki', 'P' => 'Perempuan'])
                     ->required(),
-                Select::make('status_kawin')
+                Select::make('status_kawin')->live()
                     ->label('Status kawin')
                     ->options([
                         'belum_kawin' => 'Belum kawin',
@@ -97,6 +98,7 @@ class AnggotaResource extends Resource
                     ->label('Hubungan')
                     ->options(RefHubungan::pluck('nama', 'id'))
                     ->required(),
+                ...Profil::anggota(),
                 TextInput::make('nama_ayah')->label('Nama ayah'),
                 TextInput::make('nama_ibu')->label('Nama ibu'),
                 TextInput::make('penghasilan_bulanan')

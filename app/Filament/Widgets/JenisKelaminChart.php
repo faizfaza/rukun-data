@@ -30,7 +30,7 @@ class JenisKelaminChart extends ChartWidget
             'datasets' => [[
                 'label' => 'Anggota',
                 'data' => [(int) ($rows['L'] ?? 0), (int) ($rows['P'] ?? 0)],
-                'backgroundColor' => ['#0f766e', '#2dd4bf'],
+                'backgroundColor' => ['#2563eb', '#a21caf'],
             ]],
             'labels' => ['Laki-laki', 'Perempuan'],
         ];

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\KeluargaResource\Pages;
 
 use App\Filament\Resources\KeluargaResource;
+use App\Filament\Schemas\Profil;
 use App\Models\Anggota;
 use App\Models\Keluarga;
 use Filament\Actions\DeleteAction;
@@ -59,6 +60,7 @@ class ViewKeluarga extends ViewRecord
                         TextEntry::make('tanggal_lahir')->label('Lahir')->date('d M Y'),
                         TextEntry::make('pendidikan.nama')->label('Pendidikan'),
                         TextEntry::make('pekerjaan.nama')->label('Pekerjaan'),
+                        ...Profil::detail(),
                     ])
                     ->columns(4),
             ]),

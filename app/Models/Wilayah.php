@@ -15,7 +15,29 @@ class Wilayah extends Model
 {
     protected $table = 'wilayah';
 
-    protected $fillable = ['kode', 'nama', 'level', 'tipe', 'parent_id'];
+    protected $attributes = ['is_active' => true, 'sumber' => 'lokal'];
+
+    protected $fillable = ['kode', 'nama', 'level', 'tipe', 'parent_id', 'is_active', 'sumber', 'kode_sumber', 'versi_sumber'];
+
+    protected function casts(): array
+    {
+        return ['is_active' => 'boolean'];
+    }
+
+    public function aktifEfektif(): bool
+    {
+        return $this->is_active && ! self::whereIn('id', $this->ancestorIds())->where('is_active', false)->exists();
+    }
+
+    public function scopeOperasional(Builder $query): Builder
+    {
+        return $query->where('is_active', true)->whereNotExists(function ($sub) {
+            $sub->selectRaw('1')->from('wilayah as induk_nonaktif')
+                ->where('induk_nonaktif.is_active', false)
+                ->whereRaw('wilayah.path LIKE '.(DB::getDriverName() === 'sqlite'
+                    ? "induk_nonaktif.path || '%'" : "CONCAT(induk_nonaktif.path, '%')"));
+        });
+    }
 
     // Peta induk yang valid per level; null = akar (negara). Array berarti
     // salah satu level tersebut boleh menjadi induk (dusun opsional untuk rw).

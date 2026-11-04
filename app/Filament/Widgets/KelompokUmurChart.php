@@ -47,7 +47,7 @@ class KelompokUmurChart extends ChartWidget
             'datasets' => [[
                 'label' => 'Anggota',
                 'data' => $data,
-                'backgroundColor' => '#0f766e',
+                'backgroundColor' => ['#0f766e', '#2563eb', '#7c3aed', '#d97706', '#db2777', '#0891b2', '#16a34a', '#64748b'],
             ]],
             'labels' => $labels,
         ];

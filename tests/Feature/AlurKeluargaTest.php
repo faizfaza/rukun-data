@@ -35,6 +35,7 @@ class AlurKeluargaTest extends TestCase
                     [
                         'nik' => '6371010101800001',
                         'nama_lengkap' => 'Budi Santoso',
+                        'profil' => ['nama_sekolah' => 'Universitas Uji', 'tanggal_perkawinan' => '2000-01-01', 'nomor_perkawinan' => 'DOK-UJI'],
                         'tempat_lahir' => 'Banjarbaru',
                         'tanggal_lahir' => '1980-01-01',
                         'jenis_kelamin' => 'L',
@@ -74,6 +75,8 @@ class AlurKeluargaTest extends TestCase
         $this->assertCount(2, $keluarga->anggota);
         $this->assertSame('Budi Santoso', $keluarga->anggota->firstWhere('id_hubungan', 1)->nama_lengkap);
         $this->assertSame($rt1->id, $keluarga->created_by);
+        $this->assertSame('Universitas Uji', $keluarga->anggota->firstWhere('id_hubungan', 1)->profil['nama_sekolah']);
+        $this->assertSame('DOK-UJI', $keluarga->anggota->firstWhere('id_hubungan', 1)->profil['nomor_perkawinan']);
     }
 
     public function test_no_kk_ganda_ditolak_dengan_pesan(): void

@@ -31,6 +31,7 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('admin')
+            ->databaseTransactions()
             ->path('admin')
             ->brandName('Rukun Data')
             ->login(Login::class)
@@ -64,6 +65,10 @@ class AdminPanelProvider extends PanelProvider
                 // Netral dingin (slate) agar latar, garis, dan teks terasa tertib
                 // dan resmi sesuai panduan, bukan abu netral bawaan.
                 'gray' => Color::Slate,
+                'info' => Color::Blue,
+                'success' => Color::Emerald,
+                'warning' => Color::Amber,
+                'danger' => Color::Rose,
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')

@@ -12,6 +12,14 @@ use Illuminate\Validation\ValidationException;
 
 class EditKeluarga extends EditRecord
 {
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $data['no_kk'] = $this->record->no_kk;
+        $data['alamat'] = $this->record->alamat;
+
+        return $data;
+    }
+
     protected static string $resource = KeluargaResource::class;
 
     // DESIGN.md §9.2: nama tindakan konsisten, "Simpan keluarga".

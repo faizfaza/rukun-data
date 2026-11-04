@@ -2,9 +2,12 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Pages\JelajahWilayah;
 use App\Filament\Resources\WilayahResource\Pages;
+use App\Models\User;
 use App\Models\Wilayah;
 use App\Rules\IndukWilayah;
+use App\Support\WilayahPicker;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -59,21 +62,17 @@ class WilayahResource extends Resource
 
             Select::make('parent_id')
                 ->label('Induk')
-                ->options(function (Get $get): array {
-                    $user = auth()->user();
-                    if ($user?->isAdminRw()) {
-                        $rw = $user->wilayah;
+                ->getSearchResultsUsing(function (string $search, Get $get): array {
+                    $ids = array_keys(WilayahPicker::search($search));
 
-                        return $rw ? [$rw->id => "{$rw->nama} ({$rw->rantaiIndukNama()})"] : [];
-                    }
-
-                    return static::indukOptions($get('level'));
+                    return Wilayah::whereIn('id', $ids)->whereIn('level', Wilayah::indukValid($get('level') ?? ''))->get()->mapWithKeys(fn ($w) => [$w->id => $w->kode.' · '.$w->alamatLengkap()])->all();
                 })
+                ->getOptionLabelUsing(fn ($value) => Wilayah::find($value)?->alamatLengkap())
                 ->default(fn (): ?int => auth()->user()?->isAdminRw() ? auth()->user()->id_wilayah : null)
                 ->disabled(fn (string $operation): bool => $operation === 'edit' || (bool) auth()->user()?->isAdminRw())
                 ->dehydrated()
                 ->searchable()
-                ->preload()
+
                 ->required(fn (Get $get): bool => filled($get('level')) && $get('level') !== 'negara')
                 ->visible(fn (Get $get): bool => filled($get('level')) && $get('level') !== 'negara')
                 ->rule(fn (Get $get): IndukWilayah => new IndukWilayah(fn (): ?string => $get('level'))),
@@ -82,7 +81,7 @@ class WilayahResource extends Resource
                 ->label('Kode')
                 ->required()
                 ->maxLength(32)
-                ->helperText('Kode contoh untuk provinsi sampai desa; akan diganti data resmi Kemendagri.'),
+                ->helperText('Kode sumber wilayah; RT/RW/dusun lokal tetap dapat menggunakan kode lokal.'),
 
             TextInput::make('nama')
                 ->label('Nama')
@@ -100,14 +99,17 @@ class WilayahResource extends Resource
     {
         return $table
             ->columns([
+                TextColumn::make('kode')->label('Kode')->searchable(),
+                TextColumn::make('is_active')->label('Status lokal')->badge()->formatStateUsing(fn ($state) => $state ? 'Aktif' : 'Nonaktif')->color(fn ($state) => $state ? 'success' : 'gray'),
+                TextColumn::make('efektif')->label('Operasional')->getStateUsing(fn (Wilayah $record) => $record->aktifEfektif() ? 'Aktif' : 'Terblokir / nonaktif')->badge()->color(fn (string $state) => $state === 'Aktif' ? 'success' : 'warning'),
                 TextColumn::make('nama')
                     ->label('Nama')
                     ->searchable()
                     ->sortable()
-                    ->weight(fn (Wilayah $record): string => $record->children()->exists() ? 'semibold' : 'normal')
-                    ->color(fn (Wilayah $record): string => $record->children()->exists() ? 'primary' : 'gray')
-                    ->icon(fn (Wilayah $record): string => $record->children()->exists() ? 'heroicon-m-folder' : 'heroicon-m-map-pin')
-                    ->iconColor(fn (Wilayah $record): string => $record->children()->exists() ? 'primary' : 'gray')
+                    ->weight(fn (Wilayah $record): string => $record->children_count > 0 ? 'semibold' : 'normal')
+                    ->color(fn (Wilayah $record): string => $record->children_count > 0 ? 'primary' : 'gray')
+                    ->icon(fn (Wilayah $record): string => $record->children_count > 0 ? 'heroicon-m-folder' : 'heroicon-m-map-pin')
+                    ->iconColor(fn (Wilayah $record): string => $record->children_count > 0 ? 'primary' : 'gray')
                     ->description(function (Wilayah $record): ?string {
                         if ($record->level === 'dusun') {
                             return 'Wilayah dusun (membawahi RW di dalamnya)';
@@ -118,7 +120,7 @@ class WilayahResource extends Resource
 
                         return null;
                     })
-                    ->url(fn (Wilayah $record): ?string => $record->children()->exists()
+                    ->url(fn (Wilayah $record): ?string => $record->children_count > 0
                         ? static::getUrl('index', ['parent' => $record->id])
                         : null
                     ),
@@ -126,7 +128,7 @@ class WilayahResource extends Resource
                     ->label('Level')
                     ->badge()
                     ->color(fn (string $state, Wilayah $record): string => match ($state) {
-                        'negara' => 'purple',
+                        'negara' => 'info',
                         'provinsi' => 'info',
                         'kabupaten_kota' => 'warning',
                         'kecamatan' => 'success',
@@ -153,7 +155,7 @@ class WilayahResource extends Resource
                     ->badge()
                     ->color(fn (int $state): string => $state > 0 ? 'primary' : 'gray')
                     ->alignCenter()
-                    ->url(fn (Wilayah $record): ?string => $record->children()->exists()
+                    ->url(fn (Wilayah $record): ?string => $record->children_count > 0
                         ? static::getUrl('index', ['parent' => $record->id])
                         : null
                     ),
@@ -166,13 +168,19 @@ class WilayahResource extends Resource
                 SelectFilter::make('level')->label('Level')->options(Wilayah::levelOptions()),
             ])
             ->actions([
+                Action::make('aktivasi')->label(fn (Wilayah $record) => $record->is_active ? 'Nonaktifkan' : 'Aktifkan')->requiresConfirmation()
+                    ->visible(fn (Wilayah $record) => auth()->user()->can('update', $record))
+                    ->action(fn (Wilayah $record) => $record->update(['is_active' => ! $record->is_active])),
+                Action::make('admin')->label('Admin di wilayah ini')->color('info')
+                    ->visible(fn () => auth()->user()->can('viewAny', User::class))
+                    ->url(fn (Wilayah $record) => UserResource::getUrl('index', ['wilayah' => $record->id])),
                 Action::make('buka')
                     ->label('Buka')
                     ->icon('heroicon-m-arrow-right-circle')
                     ->color('primary')
                     ->button()
                     ->size('xs')
-                    ->visible(fn (Wilayah $record): bool => $record->children()->exists())
+                    ->visible(fn (Wilayah $record): bool => $record->children_count > 0)
                     ->url(fn (Wilayah $record): string => static::getUrl('index', ['parent' => $record->id])),
                 Action::make('keluarga')
                     ->label('Keluarga')
@@ -181,11 +189,11 @@ class WilayahResource extends Resource
                     ->button()
                     ->size('xs')
                     ->visible(fn (Wilayah $record): bool => $record->level === 'rt')
-                    ->url(fn (Wilayah $record): string => \App\Filament\Pages\JelajahWilayah::getUrl(['wilayah' => $record->id])),
+                    ->url(fn (Wilayah $record): string => JelajahWilayah::getUrl(['wilayah' => $record->id])),
                 EditAction::make(),
                 DeleteAction::make()
                     ->before(function (DeleteAction $action, Wilayah $record): void {
-                        if ($record->children()->exists() || $record->keluarga()->exists()) {
+                        if ($record->children_count > 0 || $record->keluarga()->exists()) {
                             Notification::make()
                                 ->danger()
                                 ->title('Wilayah tidak dapat dihapus')
@@ -200,7 +208,7 @@ class WilayahResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery()->with(['parent'])->orderBy('path');
+        $query = parent::getEloquentQuery()->with(['parent'])->withCount('children')->orderBy('path');
         $user = auth()->user();
 
         if ($user === null || $user->isSuperadmin() || $user->isAdmin()) {

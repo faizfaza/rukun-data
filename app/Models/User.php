@@ -21,6 +21,7 @@ class User extends Authenticatable implements FilamentUser
      * @var list<string>
      */
     protected $fillable = [
+        'identitas',
         'name',
         'username',
         'email',
@@ -34,7 +35,7 @@ class User extends Authenticatable implements FilamentUser
     /**
      * @var list<string>
      */
-    protected $hidden = [
+    protected $hidden = ['identitas',
         'password',
         'remember_token',
     ];
@@ -47,6 +48,7 @@ class User extends Authenticatable implements FilamentUser
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'identitas' => 'encrypted:array',
             'role' => Role::class,
             'is_active' => 'boolean',
         ];

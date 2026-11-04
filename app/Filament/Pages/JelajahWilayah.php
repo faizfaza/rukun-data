@@ -252,7 +252,7 @@ class JelajahWilayah extends Page implements HasTable
 
     public function bolehTambahKeluarga(): bool
     {
-        return $this->nodeTerpilihRt() !== null
+        return $this->nodeTerpilihRt() !== null && $this->nodeTerpilihRt()->aktifEfektif()
             && (bool) auth()->user()?->can('create', Keluarga::class);
     }
 

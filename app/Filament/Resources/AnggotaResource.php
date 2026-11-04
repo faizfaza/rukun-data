@@ -56,11 +56,13 @@ class AnggotaResource extends Resource
                     ->label('NIK')
                     ->required()
                     ->length(16)
-                    ->rule('regex:/^[0-9]{16}$/'),
+                    ->rule('regex:/^[0-9]{16}$/')
+                    ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nik),
                 TextInput::make('nama_lengkap')
                     ->label('Nama lengkap')
                     ->required()
-                    ->maxLength(100),
+                    ->maxLength(100)
+                    ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nama_lengkap),
                 TextInput::make('tempat_lahir')
                     ->label('Tempat lahir')
                     ->required()
@@ -99,12 +101,17 @@ class AnggotaResource extends Resource
                     ->options(RefHubungan::pluck('nama', 'id'))
                     ->required(),
                 ...Profil::anggota(),
-                TextInput::make('nama_ayah')->label('Nama ayah'),
-                TextInput::make('nama_ibu')->label('Nama ibu'),
+                TextInput::make('nama_ayah')
+                    ->label('Nama ayah')
+                    ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nama_ayah),
+                TextInput::make('nama_ibu')
+                    ->label('Nama ibu')
+                    ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nama_ibu),
                 TextInput::make('penghasilan_bulanan')
                     ->label('Penghasilan/bulan (Rp)')
                     ->numeric()
-                    ->minValue(0),
+                    ->minValue(0)
+                    ->formatStateUsing(fn ($state, ?Anggota $record = null) => $state ?? $record?->penghasilan_bulanan),
             ])->columns(3),
         ]);
     }

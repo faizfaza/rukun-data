@@ -48,18 +48,31 @@ class WilayahPolicy
     public function delete(User $user, Wilayah $wilayah): bool
     {
         if ($user->isSuperadmin() || $user->isAdmin()) {
-            return $wilayah->children()->doesntExist()
-                && $wilayah->keluarga()->doesntExist();
+            return $this->tanpaTurunan($wilayah);
         }
 
         if ($user->isAdminRw()) {
             return $wilayah->level === 'rt'
                 && $wilayah->parent_id === $user->id_wilayah
-                && $wilayah->children()->doesntExist()
-                && $wilayah->keluarga()->doesntExist();
+                && $this->tanpaTurunan($wilayah);
         }
 
         return false;
+    }
+
+    // Memakai hasil withCount bila tersedia agar daftar tabel tidak menembak
+    // query exists per baris.
+    private function tanpaTurunan(Wilayah $wilayah): bool
+    {
+        $punyaAnak = $wilayah->children_count !== null
+            ? (int) $wilayah->children_count > 0
+            : $wilayah->children()->exists();
+
+        $punyaKeluarga = $wilayah->keluarga_count !== null
+            ? (int) $wilayah->keluarga_count > 0
+            : $wilayah->keluarga()->exists();
+
+        return ! $punyaAnak && ! $punyaKeluarga;
     }
 
     public function restore(User $user, Wilayah $wilayah): bool

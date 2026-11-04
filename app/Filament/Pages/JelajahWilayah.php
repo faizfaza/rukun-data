@@ -18,6 +18,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -45,7 +46,19 @@ class JelajahWilayah extends Page implements HasTable
 
     protected static ?int $navigationSort = 1;
 
+    // Halaman ini dipakai sebagai tab di dalam resource Wilayah, tetapi tetap
+    // menjadi menu mandiri untuk petugas RT yang tidak boleh membuka master.
+    protected static bool $shouldRegisterNavigation = false;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return (bool) auth()->user()?->isAdminRt();
+    }
+
     protected string $view = 'filament.pages.jelajah-wilayah';
+
+    // Saat ditanam di halaman Wilayah, header halaman tidak dirender ulang.
+    public bool $tertanam = false;
 
     // Pilihan bertahap: p0 = pilihan pertama (mis. provinsi), p1 = berikutnya.
     /** @var array<string, int|string|null> */
@@ -64,6 +77,11 @@ class JelajahWilayah extends Page implements HasTable
 
     protected ?string $cacheTanggaKunci = null;
 
+    /** @var array<int, array{jumlah: int, label: string}>|null */
+    protected ?array $cacheHitungan = null;
+
+    protected ?string $cacheHitunganKunci = null;
+
     // Rute memakai parameter opsional agar node tertentu bisa ditautkan langsung.
     public static function getRoutePath(Panel $panel): string
     {
@@ -72,8 +90,14 @@ class JelajahWilayah extends Page implements HasTable
 
     // Tautan langsung (mis. /admin/jelajah/12) mengisi rantai sampai node itu.
     // Node di luar subtree pengguna → 404.
-    public function mount(?Wilayah $wilayah = null): void
+    public function mount(?Wilayah $wilayah = null, ?int $wilayahId = null, bool $tertanam = false): void
     {
+        $this->tertanam = $tertanam;
+
+        if ($wilayah === null && $wilayahId !== null) {
+            $wilayah = Wilayah::find($wilayahId);
+        }
+
         $start = $this->titikAwal(auth()->user());
 
         if ($wilayah !== null) {
@@ -81,6 +105,11 @@ class JelajahWilayah extends Page implements HasTable
 
             $this->pilihan = $this->pilihanDariNode($wilayah, $start);
         }
+    }
+
+    public function getHeading(): string|Htmlable|null
+    {
+        return $this->tertanam ? null : parent::getHeading();
     }
 
     public function table(Table $table): Table
@@ -120,10 +149,19 @@ class JelajahWilayah extends Page implements HasTable
 
     protected function getHeaderActions(): array
     {
+        return $this->tertanam ? [] : $this->aksiHeader();
+    }
+
+    /** @return array<int, Action> */
+    public function aksiHeader(): array
+    {
         return [
             Action::make('cari')
                 ->label('Cari No KK / NIK')
                 ->icon('heroicon-o-magnifying-glass')
+                ->color('gray')
+                ->outlined()
+                ->button()
                 ->form([
                     TextInput::make('nomor')
                         ->label('No KK atau NIK persis')
@@ -227,6 +265,75 @@ class JelajahWilayah extends Page implements HasTable
                 fn (Wilayah $w): bool => str_contains(mb_strtolower($w->nama.' '.$w->kode), $kata),
             ))
             ->values();
+    }
+
+    // Jumlah turunan (atau KK untuk RT) per opsi. Dua query agregat untuk
+    // seluruh daftar, bukan satu query per baris.
+    /** @return array<int, array{jumlah: int, label: string}> */
+    public function hitunganOpsi(): array
+    {
+        $opsi = $this->opsiSaatIni();
+        $kunci = $opsi->pluck('id')->implode(',');
+
+        if ($this->cacheHitungan !== null && $this->cacheHitunganKunci === $kunci) {
+            return $this->cacheHitungan;
+        }
+
+        $ids = $opsi->pluck('id')->all();
+
+        if ($ids === []) {
+            $this->cacheHitunganKunci = $kunci;
+
+            return $this->cacheHitungan = [];
+        }
+
+        $anak = Wilayah::query()
+            ->whereIn('parent_id', $ids)
+            ->selectRaw('parent_id, count(*) as jumlah')
+            ->groupBy('parent_id')
+            ->pluck('jumlah', 'parent_id');
+
+        $rtIds = $opsi->where('level', 'rt')->pluck('id')->all();
+
+        $keluarga = $rtIds === []
+            ? collect()
+            : Keluarga::query()
+                ->whereIn('id_wilayah', $rtIds)
+                ->selectRaw('id_wilayah, count(*) as jumlah')
+                ->groupBy('id_wilayah')
+                ->pluck('jumlah', 'id_wilayah');
+
+        $hasil = [];
+
+        foreach ($opsi as $w) {
+            $jumlah = $w->level === 'rt'
+                ? (int) ($keluarga[$w->id] ?? 0)
+                : (int) ($anak[$w->id] ?? 0);
+
+            $hasil[$w->id] = [
+                'jumlah' => $jumlah,
+                'label' => $this->labelHitungan($w->level, $jumlah),
+            ];
+        }
+
+        $this->cacheHitunganKunci = $kunci;
+
+        return $this->cacheHitungan = $hasil;
+    }
+
+    protected function labelHitungan(string $level, int $jumlah): string
+    {
+        return match ($level) {
+            'rt' => "{$jumlah} KK",
+            'rw' => "{$jumlah} RT",
+            'dusun' => "{$jumlah} RW",
+            'desa' => "{$jumlah} wilayah",
+            'kecamatan' => "{$jumlah} desa",
+            'kabupaten_kota' => "{$jumlah} kecamatan",
+            'provinsi' => "{$jumlah} kab/kota",
+            'negara' => "{$jumlah} provinsi",
+            default => "{$jumlah} turunan",
+        };
     }
 
     public function nodeTerpilihRt(): ?Wilayah

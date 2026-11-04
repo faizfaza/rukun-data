@@ -17,6 +17,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -34,38 +35,32 @@ class AdminPanelProvider extends PanelProvider
             ->databaseTransactions()
             ->path('admin')
             ->brandName('Rukun Data')
+            ->brandLogo(fn () => view('filament.brand'))
+            ->brandLogoHeight('2rem')
             ->login(Login::class)
-            // DESIGN.md §5: Plus Jakarta Sans sebagai satu-satunya keluarga huruf.
-            ->font('Plus Jakarta Sans')
-            // DESIGN.md §11.1: tema kustom menyalakan sidebar navy dan token warna lain.
+            // Inter Variable bawaan Filament dipakai agar tidak ada font eksternal.
             ->viteTheme('resources/css/filament/admin/theme.css')
-            // DESIGN.md §6: sidebar navy 240px, brand di sidebar, user + wilayah di
-            // kaki sidebar (topbar dimatikan).
+            // Sidebar terang ala HRISELINK, topbar dimatikan.
             ->topbar(false)
-            ->sidebarWidth('15rem')
-            // DESIGN.md hanya mendefinisikan satu tema (terang), jadi mode gelap
-            // dimatikan agar tampilan konsisten di semua perangkat.
+            ->sidebarWidth('16rem')
             ->darkMode(false)
             ->colors([
-                // DESIGN.md §4: satu warna aksen, teal, untuk tindakan utama dan menu
-                // aktif. Nilai 600 = #0F766E (tombol & tautan), 400 = #2DD4BF (penanda).
+                // Aksen utama near-black; biru dipakai sebagai aksen sekunder.
                 'primary' => [
-                    50 => '#f0fdfa',
-                    100 => '#ccfbf1',
-                    200 => '#99f6e4',
-                    300 => '#5eead4',
-                    400 => '#2dd4bf',
-                    500 => '#14b8a6',
-                    600 => '#0f766e',
-                    700 => '#115e59',
-                    800 => '#134e4a',
-                    900 => '#0e3a37',
-                    950 => '#042f2e',
+                    50 => '#f7f8f9',
+                    100 => '#eceef1',
+                    200 => '#d9dde4',
+                    300 => '#b9c0cb',
+                    400 => '#8b95a5',
+                    500 => '#4b5563',
+                    600 => '#0b0f14',
+                    700 => '#0b0f14',
+                    800 => '#080b0e',
+                    900 => '#050709',
+                    950 => '#000000',
                 ],
-                // Netral dingin (slate) agar latar, garis, dan teks terasa tertib
-                // dan resmi sesuai panduan, bukan abu netral bawaan.
-                'gray' => Color::Slate,
-                'info' => Color::Blue,
+                'gray' => Color::Zinc,
+                'info' => Color::Indigo,
                 'success' => Color::Emerald,
                 'warning' => Color::Amber,
                 'danger' => Color::Rose,
@@ -96,6 +91,10 @@ class AdminPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])
+            ->renderHook(
+                PanelsRenderHook::BODY_END,
+                fn () => view('filament.hooks.filter-badge-zero'),
+            )
             ->authMiddleware([
                 Authenticate::class,
             ]);

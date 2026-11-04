@@ -71,6 +71,22 @@ class OperationalProfilesTest extends TestCase
         Livewire::test(ListUsers::class)->set('wilayah', $w['provinsi']->id)->assertCanSeeTableRecords([$rt])->assertCanNotSeeTableRecords([$root]);
     }
 
+    public function test_directory_root_lists_provinces_and_skips_country(): void
+    {
+        $w = $this->seedDasar();
+        $root = $this->makeUser('root', 'superadmin', null);
+        $this->actingAs($root);
+        Livewire::test(ListUsers::class)
+            ->assertSee($w['provinsi']->nama)
+            ->assertDontSee($w['negara']->nama)
+            ->set('wilayah', $w['negara']->id)
+            ->assertSee($w['provinsi']->nama)
+            ->assertDontSee($w['negara']->nama)
+            ->set('wilayah', $w['provinsi']->id)
+            ->assertSee($w['provinsi']->nama)
+            ->assertDontSee($w['negara']->nama);
+    }
+
     public function test_import_is_idempotent_dry_run_and_missing_parent_rolls_back(): void
     {
         $this->seedDasar();

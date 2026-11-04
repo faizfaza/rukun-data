@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\AnggotaResource\Pages\EditAnggota;
 use App\Filament\Resources\KeluargaResource\Pages\CreateKeluarga;
+use App\Filament\Resources\KeluargaResource\Pages\EditKeluarga;
 use App\Models\Keluarga;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -188,5 +190,87 @@ class AlurKeluargaTest extends TestCase
                 'rw_id' => null,
                 'id_wilayah' => null,
             ]);
+    }
+
+    public function test_edit_keluarga_memuat_data_tersembunyi_tanpa_kehilangan(): void
+    {
+        $w = $this->seedDasar();
+        $admin = $this->makeUser('admin', 'superadmin', null);
+
+        $keluarga = $this->makeKeluarga($w['rt1']->id, '6371010101000001', [
+            ['nik' => '6371010101800001', 'hubungan' => 1],
+            ['nik' => '6371010101850002', 'hubungan' => 2],
+        ], $admin->id);
+
+        $this->actingAs($admin);
+
+        Livewire::test(EditKeluarga::class, ['record' => $keluarga->id])
+            ->assertFormSet([
+                'no_kk' => '6371010101000001',
+                'alamat' => 'Jl. Uji No. 1',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $segar = $keluarga->fresh();
+
+        $this->assertSame('6371010101000001', $segar->no_kk);
+        $this->assertSame('Jl. Uji No. 1', $segar->alamat);
+        $this->assertCount(2, $segar->anggota);
+        $this->assertSame(
+            ['6371010101800001', '6371010101850002'],
+            $segar->anggota->pluck('nik')->sort()->values()->all(),
+        );
+    }
+
+    public function test_edit_keluarga_bisa_hapus_satu_anggota(): void
+    {
+        $w = $this->seedDasar();
+        $admin = $this->makeUser('admin', 'superadmin', null);
+
+        $keluarga = $this->makeKeluarga($w['rt1']->id, '6371010101000001', [
+            ['nik' => '6371010101800001', 'hubungan' => 1],
+            ['nik' => '6371010101850002', 'hubungan' => 2],
+        ], $admin->id);
+
+        $this->actingAs($admin);
+
+        $component = Livewire::test(EditKeluarga::class, ['record' => $keluarga->id]);
+        $anggota = $component->get('data.anggota');
+
+        array_pop($anggota);
+
+        $component
+            ->set('data.anggota', $anggota)
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertCount(1, $keluarga->fresh()->anggota);
+        $this->assertSame('6371010101800001', $keluarga->fresh()->anggota->first()->nik);
+    }
+
+    public function test_edit_anggota_memuat_nik_dan_nama_tersembunyi(): void
+    {
+        $w = $this->seedDasar();
+        $admin = $this->makeUser('admin', 'superadmin', null);
+
+        $keluarga = $this->makeKeluarga($w['rt1']->id, '6371010101000001', [
+            ['nik' => '6371010101800001', 'hubungan' => 1],
+        ], $admin->id);
+
+        $anggota = $keluarga->anggota()->first();
+
+        $this->actingAs($admin);
+
+        Livewire::test(EditAnggota::class, ['record' => $anggota->id])
+            ->assertFormSet([
+                'nik' => '6371010101800001',
+                'nama_lengkap' => 'Anggota 0',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('6371010101800001', $anggota->fresh()->nik);
+        $this->assertSame('Anggota 0', $anggota->fresh()->nama_lengkap);
     }
 }

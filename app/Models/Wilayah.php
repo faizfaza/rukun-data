@@ -15,6 +15,10 @@ class Wilayah extends Model
 {
     protected $table = 'wilayah';
 
+    // Rantai induk terdalam (RT -> RW -> dusun -> desa -> kecamatan ->
+    // kabupaten/kota -> provinsi -> negara) untuk eager loading.
+    public const RELASI_LELUHUR = 'parent.parent.parent.parent.parent.parent.parent';
+
     protected $attributes = ['is_active' => true, 'sumber' => 'lokal'];
 
     protected $fillable = ['kode', 'nama', 'level', 'tipe', 'parent_id', 'is_active', 'sumber', 'kode_sumber', 'versi_sumber'];
@@ -134,6 +138,32 @@ class Wilayah extends Model
     /** @return Collection<int, Wilayah> */
     public function ancestors(): Collection
     {
+        // Pakai rantai relasi yang sudah di-eager-load bila lengkap, agar
+        // daftar tabel tidak menembak satu query per baris.
+        if ($this->relationLoaded('parent')) {
+            $rantai = [];
+            $node = $this->parent;
+
+            while ($node !== null) {
+                $rantai[] = $node;
+
+                if ($node->parent_id === null) {
+                    break;
+                }
+
+                if (! $node->relationLoaded('parent')) {
+                    $rantai = null;
+                    break;
+                }
+
+                $node = $node->parent;
+            }
+
+            if ($rantai !== null) {
+                return new Collection(array_reverse($rantai));
+            }
+        }
+
         $ids = $this->ancestorIds();
 
         if ($ids === []) {

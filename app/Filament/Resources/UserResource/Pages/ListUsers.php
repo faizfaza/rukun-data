@@ -15,6 +15,10 @@ class ListUsers extends ListRecords
 {
     protected static string $resource = UserResource::class;
 
+    protected static ?string $title = 'Kelola Admin';
+
+    protected const WILAYAH_PER_HALAMAN = 25;
+
     protected string $view = 'filament.resources.users.directory';
 
     #[Url]
@@ -23,6 +27,13 @@ class ListUsers extends ListRecords
     #[Url]
     public int $halamanWilayah = 1;
 
+    public function mount(): void
+    {
+        parent::mount();
+
+        $this->halamanWilayah = max(1, min($this->halamanWilayah, $this->totalHalamanWilayah()));
+    }
+
     public function updatedCariWilayah(): void
     {
         $this->halamanWilayah = 1;
@@ -30,12 +41,27 @@ class ListUsers extends ListRecords
 
     public function lanjutWilayah(): void
     {
-        $this->halamanWilayah++;
+        $this->halamanWilayah = min($this->totalHalamanWilayah(), $this->halamanWilayah + 1);
     }
 
     public function mundurWilayah(): void
     {
         $this->halamanWilayah = max(1, $this->halamanWilayah - 1);
+    }
+
+    public function wilayahPerHalaman(): int
+    {
+        return self::WILAYAH_PER_HALAMAN;
+    }
+
+    public function totalWilayah(): int
+    {
+        return $this->nodesQuery()->count();
+    }
+
+    public function totalHalamanWilayah(): int
+    {
+        return max(1, (int) ceil($this->totalWilayah() / self::WILAYAH_PER_HALAMAN));
     }
 
     #[Url]
@@ -47,14 +73,57 @@ class ListUsers extends ListRecords
     #[Url]
     public bool $global = false;
 
+    #[Url]
+    public string $roleFilter = '';
+
+    #[Url]
+    public string $statusFilter = '';
+
     public function node(): ?Wilayah
     {
-        return $this->wilayah ? Wilayah::findOrFail($this->wilayah) : null;
+        if (! $this->wilayah) {
+            return null;
+        }
+
+        $node = Wilayah::findOrFail($this->wilayah);
+
+        // Indonesia adalah satu-satunya negara; perlakukan level negara
+        // sebagai akar agar daftar langsung mulai dari provinsi.
+        return $node->level === 'negara' ? null : $node;
+    }
+
+    protected function nodesQuery(): Builder
+    {
+        $node = $this->node();
+
+        return Wilayah::query()
+            ->when($this->cariWilayah === '', function ($query): void {
+                if ($this->wilayah) {
+                    $query->where('parent_id', $this->wilayah);
+
+                    return;
+                }
+
+                $query->where('level', 'provinsi');
+            })
+            ->when($this->cariWilayah !== '', function ($query) use ($node): void {
+                $query->where('level', '!=', 'negara')
+                    ->where(fn ($q) => $q->where('nama', 'like', '%'.$this->cariWilayah.'%')->orWhere('kode', 'like', '%'.$this->cariWilayah.'%'));
+
+                if ($node) {
+                    $query->where('path', 'like', $node->path.'%')->whereKeyNot($node->id);
+                }
+            })
+            ->orderBy('kode')
+            ->orderBy('nama');
     }
 
     public function nodes()
     {
-        return Wilayah::query()->when($this->cariWilayah === '', fn ($q) => $q->where('parent_id', $this->wilayah))->when($this->cariWilayah !== '', fn ($q) => $q->where(fn ($q) => $q->where('nama', 'like', '%'.$this->cariWilayah.'%')->orWhere('kode', 'like', '%'.$this->cariWilayah.'%')))->orderBy('path')->offset(($this->halamanWilayah - 1) * 25)->limit(25)->get();
+        return $this->nodesQuery()
+            ->offset(($this->halamanWilayah - 1) * self::WILAYAH_PER_HALAMAN)
+            ->limit(self::WILAYAH_PER_HALAMAN)
+            ->get();
     }
 
     public function counters(): array
@@ -99,9 +168,53 @@ class ListUsers extends ListRecords
         $this->resetTable();
     }
 
+    public function updatedRoleFilter(): void
+    {
+        $this->resetTable();
+    }
+
+    public function updatedStatusFilter(): void
+    {
+        $this->resetTable();
+    }
+
+    public function resetFilter(): void
+    {
+        $this->tableSearch = '';
+        $this->roleFilter = '';
+        $this->statusFilter = '';
+        $this->wilayah = null;
+        $this->global = false;
+        $this->turunan = true;
+        $this->cariWilayah = '';
+        $this->halamanWilayah = 1;
+        $this->resetTable();
+    }
+
+    public function hasActiveFilter(): bool
+    {
+        return filled($this->tableSearch)
+            || filled($this->roleFilter)
+            || filled($this->statusFilter)
+            || $this->wilayah !== null
+            || $this->global
+            || ! $this->turunan;
+    }
+
     protected function getTableQuery(): Builder
     {
         $query = parent::getTableQuery();
+
+        if (filled($this->roleFilter)) {
+            $query->where('role', $this->roleFilter);
+        }
+
+        if ($this->statusFilter === 'aktif') {
+            $query->where('is_active', true);
+        } elseif ($this->statusFilter === 'nonaktif') {
+            $query->where('is_active', false);
+        }
+
         if ($this->global) {
             return $query->whereNull('id_wilayah');
         }

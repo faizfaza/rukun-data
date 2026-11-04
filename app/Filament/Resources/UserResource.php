@@ -21,9 +21,6 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Enums\FiltersLayout;
-use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -39,6 +36,8 @@ class UserResource extends Resource
     protected static ?string $navigationLabel = 'Kelola Admin';
 
     protected static ?string $modelLabel = 'admin';
+
+    protected static ?string $breadcrumb = 'Kelola Admin';
 
     protected static string|\UnitEnum|null $navigationGroup = 'Pengaturan';
 
@@ -103,7 +102,6 @@ class UserResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->heading('Data Admin')
             ->columns([
                 TextColumn::make('is_active')
                     ->label('Status')
@@ -135,27 +133,30 @@ class UserResource extends Resource
                     ->label('Nama Admin')
                     ->description(fn (User $record): ?string => $record->username ? "@{$record->username}" : null)
                     ->searchable(['name', 'username'])
-                    ->sortable(),
+                    ->sortable()
+                    ->wrap(),
 
-                TextColumn::make('wilayah.nama')->label('Wilayah penugasan')->placeholder('Admin Global')
+                TextColumn::make('wilayah.nama')->label('Wilayah penugasan')->placeholder('Tanpa penugasan')
                     ->description(fn (User $record) => $record->wilayah?->alamatLengkap())
-                    ->url(fn (User $record) => $record->id_wilayah ? WilayahResource::getUrl('index', ['parent' => $record->id_wilayah]) : null),
+                    ->url(fn (User $record) => $record->id_wilayah ? WilayahResource::getUrl('index', ['parent' => $record->id_wilayah]) : null)
+                    ->wrap(),
             ])
-            ->persistSearchInSession()->persistFiltersInSession()
-            ->filters([
-                SelectFilter::make('role')->label('Peran')->options(Role::options()),
-                TernaryFilter::make('is_active')->label('Status akun'),
-            ])
-            ->filtersLayout(FiltersLayout::AboveContent)
+            ->persistSearchInSession()
+            ->searchable(false)
             ->striped()
             ->emptyStateHeading('Belum ada akun')
             ->emptyStateDescription('Tambahkan akun admin RT untuk wilayah Anda.')
             ->actions([
-                EditAction::make()->url(fn (User $record, $livewire) => static::getUrl('edit', ['record' => $record, 'context' => $livewire->wilayah ?? null])),
+                EditAction::make()
+                    ->iconButton()
+                    ->tooltip('Ubah')
+                    ->url(fn (User $record, $livewire) => static::getUrl('edit', ['record' => $record, 'context' => $livewire->wilayah ?? null])),
                 Action::make('toggleAktif')
                     ->label(fn (User $record): string => $record->is_active ? 'Nonaktifkan' : 'Aktifkan')
                     ->icon(fn (User $record): string => $record->is_active ? 'heroicon-m-no-symbol' : 'heroicon-m-check-circle')
                     ->color(fn (User $record): string => $record->is_active ? 'danger' : 'success')
+                    ->iconButton()
+                    ->tooltip(fn (User $record): string => $record->is_active ? 'Nonaktifkan' : 'Aktifkan')
                     ->requiresConfirmation()
                     // Admin tidak boleh menonaktifkan dirinya sendiri,
                     // dan admin tidak boleh menonaktifkan admin lain atau superadmin.
@@ -177,7 +178,7 @@ class UserResource extends Resource
     // Hanya superadmin dan admin yang mengelola akun admin.
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery();
+        $query = parent::getEloquentQuery()->with(['wilayah.'.Wilayah::RELASI_LELUHUR]);
         $user = auth()->user();
 
         if ($user === null || $user->isSuperadmin() || $user->isAdmin()) {
@@ -224,7 +225,9 @@ class UserResource extends Resource
             return [];
         }
 
-        $query = Wilayah::where('level', $level)->orderBy('path');
+        $query = Wilayah::where('level', $level)
+            ->with([Wilayah::RELASI_LELUHUR])
+            ->orderBy('path');
 
         $allowed = WilayahAccess::allowedWilayahIds(auth()->user());
 

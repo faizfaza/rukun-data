@@ -143,6 +143,46 @@ class WilayahTest extends TestCase
         $this->get('/admin/wilayah')->assertOk();
     }
 
+    public function test_halaman_wilayah_menampilkan_tab_jelajah_dan_master(): void
+    {
+        $this->seedDasar();
+        $superadmin = $this->makeUser('sa', 'superadmin', null);
+
+        $this->actingAs($superadmin);
+
+        $this->get('/admin/wilayah')
+            ->assertOk()
+            ->assertSee('Jelajah')
+            ->assertSee('Master Wilayah')
+            ->assertSee('Tambah wilayah');
+    }
+
+    public function test_tab_jelajah_menampilkan_pemilih_wilayah(): void
+    {
+        $this->seedDasar();
+        $superadmin = $this->makeUser('sa', 'superadmin', null);
+
+        $this->actingAs($superadmin);
+
+        $this->get('/admin/wilayah?tab=jelajah')
+            ->assertOk()
+            ->assertSee('Lokasi aktif')
+            ->assertSee('Pilih Provinsi')
+            ->assertSee('Cari No KK / NIK');
+    }
+
+    public function test_tab_jelajah_tautan_langsung_ke_rt(): void
+    {
+        $w = $this->seedDasar();
+        $superadmin = $this->makeUser('sa', 'superadmin', null);
+
+        $this->actingAs($superadmin);
+
+        $this->get('/admin/wilayah?tab=jelajah&wilayah='.$w['rt1']->id)
+            ->assertOk()
+            ->assertSee('Keluarga di RT 001');
+    }
+
     public function test_admin_mengakses_resource_wilayah(): void
     {
         $this->seedDasar();

@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\KeluargaResource\Pages;
 use App\Filament\Schemas\Profil;
+use App\Models\Anggota;
 use App\Models\Keluarga;
 use App\Models\RefAgama;
 use App\Models\RefHubungan;
@@ -267,6 +268,7 @@ class KeluargaResource extends Resource
                         ->required()
                         ->length(16)
                         ->rule('regex:/^[0-9]{16}$/')
+                        ->formatStateUsing(fn (?string $state, ?Keluarga $record = null): ?string => $state ?? $record?->no_kk)
                         ->validationMessages(['regex' => 'No KK harus 16 digit angka.']),
                     TextInput::make('kode_pos')
                         ->label('Kode Pos')
@@ -277,6 +279,7 @@ class KeluargaResource extends Resource
                         ->label('Alamat')
                         ->required()
                         ->maxLength(500)
+                        ->formatStateUsing(fn (?string $state, ?Keluarga $record = null): ?string => $state ?? $record?->alamat)
                         ->columnSpanFull(),
                 ])->columns(2),
 
@@ -336,6 +339,7 @@ class KeluargaResource extends Resource
                     ->label('')
                     ->minItems(1)
                     ->addActionLabel('Tambah anggota')
+                    ->helperText('Ikon tempat sampah pada kartu anggota menghapus anggota tersebut setelah Simpan keluarga ditekan.')
                     // DESIGN.md §7.3.2: kartu anggota bisa dibuka/tutup dan kartu
                     // pertama otomatis berhubungan "Kepala keluarga".
                     ->collapsible()
@@ -346,11 +350,13 @@ class KeluargaResource extends Resource
                             ->label('NIK')
                             ->required()
                             ->length(16)
-                            ->rule('regex:/^[0-9]{16}$/'),
+                            ->rule('regex:/^[0-9]{16}$/')
+                            ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nik),
                         TextInput::make('nama_lengkap')
                             ->label('Nama lengkap')
                             ->required()
-                            ->maxLength(100),
+                            ->maxLength(100)
+                            ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nama_lengkap),
                         TextInput::make('tempat_lahir')
                             ->label('Tempat lahir')
                             ->required()
@@ -391,13 +397,16 @@ class KeluargaResource extends Resource
                             ->live(),
                         ...Profil::anggota(),
                         TextInput::make('nama_ayah')
-                            ->label('Nama ayah'),
+                            ->label('Nama ayah')
+                            ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nama_ayah),
                         TextInput::make('nama_ibu')
-                            ->label('Nama ibu'),
+                            ->label('Nama ibu')
+                            ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nama_ibu),
                         TextInput::make('penghasilan_bulanan')
                             ->label('Penghasilan/bulan (Rp)')
                             ->numeric()
-                            ->minValue(0),
+                            ->minValue(0)
+                            ->formatStateUsing(fn ($state, ?Anggota $record = null) => $state ?? $record?->penghasilan_bulanan),
                     ]),
             ]),
         ])
@@ -463,7 +472,12 @@ class KeluargaResource extends Resource
                     )),
                 TrashedFilter::make(),
             ])
-            ->actions([ViewAction::make(), EditAction::make(), DeleteAction::make(), RestoreAction::make()])
+            ->actions([
+                ViewAction::make()->iconButton()->tooltip('Lihat'),
+                EditAction::make()->iconButton()->tooltip('Ubah'),
+                DeleteAction::make()->iconButton()->tooltip('Hapus'),
+                RestoreAction::make()->iconButton()->tooltip('Pulihkan'),
+            ])
             ->bulkActions([DeleteBulkAction::make()]);
     }
 
@@ -547,7 +561,10 @@ class KeluargaResource extends Resource
 
         // 5. Fallback semua RT yang diizinkan
         $ids = WilayahAccess::allowedRtIds($user);
-        $query = Wilayah::operasional()->where('level', 'rt')->orderBy('path');
+        $query = Wilayah::operasional()
+            ->with([Wilayah::RELASI_LELUHUR])
+            ->where('level', 'rt')
+            ->orderBy('path');
         if ($ids !== null) {
             $query->whereIn('id', $ids);
         }

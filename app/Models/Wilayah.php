@@ -15,7 +15,33 @@ class Wilayah extends Model
 {
     protected $table = 'wilayah';
 
-    protected $fillable = ['kode', 'nama', 'level', 'tipe', 'parent_id'];
+    // Rantai induk terdalam (RT -> RW -> dusun -> desa -> kecamatan ->
+    // kabupaten/kota -> provinsi -> negara) untuk eager loading.
+    public const RELASI_LELUHUR = 'parent.parent.parent.parent.parent.parent.parent';
+
+    protected $attributes = ['is_active' => true, 'sumber' => 'lokal'];
+
+    protected $fillable = ['kode', 'nama', 'level', 'tipe', 'parent_id', 'is_active', 'sumber', 'kode_sumber', 'versi_sumber'];
+
+    protected function casts(): array
+    {
+        return ['is_active' => 'boolean'];
+    }
+
+    public function aktifEfektif(): bool
+    {
+        return $this->is_active && ! self::whereIn('id', $this->ancestorIds())->where('is_active', false)->exists();
+    }
+
+    public function scopeOperasional(Builder $query): Builder
+    {
+        return $query->where('is_active', true)->whereNotExists(function ($sub) {
+            $sub->selectRaw('1')->from('wilayah as induk_nonaktif')
+                ->where('induk_nonaktif.is_active', false)
+                ->whereRaw('wilayah.path LIKE '.(DB::getDriverName() === 'sqlite'
+                    ? "induk_nonaktif.path || '%'" : "CONCAT(induk_nonaktif.path, '%')"));
+        });
+    }
 
     // Peta induk yang valid per level; null = akar (negara). Array berarti
     // salah satu level tersebut boleh menjadi induk (dusun opsional untuk rw).
@@ -112,6 +138,32 @@ class Wilayah extends Model
     /** @return Collection<int, Wilayah> */
     public function ancestors(): Collection
     {
+        // Pakai rantai relasi yang sudah di-eager-load bila lengkap, agar
+        // daftar tabel tidak menembak satu query per baris.
+        if ($this->relationLoaded('parent')) {
+            $rantai = [];
+            $node = $this->parent;
+
+            while ($node !== null) {
+                $rantai[] = $node;
+
+                if ($node->parent_id === null) {
+                    break;
+                }
+
+                if (! $node->relationLoaded('parent')) {
+                    $rantai = null;
+                    break;
+                }
+
+                $node = $node->parent;
+            }
+
+            if ($rantai !== null) {
+                return new Collection(array_reverse($rantai));
+            }
+        }
+
         $ids = $this->ancestorIds();
 
         if ($ids === []) {

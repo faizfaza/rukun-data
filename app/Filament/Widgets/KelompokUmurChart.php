@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Anggota;
+use App\Support\WilayahScope;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Contracts\Support\Htmlable;
 
@@ -11,6 +12,10 @@ use Illuminate\Contracts\Support\Htmlable;
 class KelompokUmurChart extends ChartWidget
 {
     protected static ?int $sort = 2;
+
+    protected static bool $isLazy = false;
+
+    protected ?string $maxHeight = '17rem';
 
     protected ?string $heading = 'Sebaran Kelompok Umur';
 
@@ -29,25 +34,30 @@ class KelompokUmurChart extends ChartWidget
             'Lansia (60+)' => [60, null],
         ];
 
+        $now = now();
         $labels = [];
         $data = [];
 
         foreach ($buckets as $label => [$min, $max]) {
-            $query = Anggota::query()->where('tanggal_lahir', '<=', now()->subYears($min));
+            $query = Anggota::query()->where('tanggal_lahir', '<=', $now->copy()->subYears($min));
 
             if ($max !== null) {
-                $query->where('tanggal_lahir', '>', now()->subYears($max + 1));
+                $query->where('tanggal_lahir', '>', $now->copy()->subYears($max + 1));
             }
 
-            $labels[] = $label;
-            $data[] = $query->count();
+            $count = $query->count();
+
+            // Nilai ikut ditampilkan pada label agar kategori 0 tetap terbaca,
+            // tanpa menambah dependensi data-labels.
+            $labels[] = $label.' · '.$count;
+            $data[] = $count;
         }
 
         return [
             'datasets' => [[
                 'label' => 'Anggota',
                 'data' => $data,
-                'backgroundColor' => '#0f766e',
+                'backgroundColor' => ['#0b0f14', '#4755ae', '#8b8fc7', '#c3c7e3', '#6b7280', '#9ca3af', '#d1d5db', '#e5e7eb'],
             ]],
             'labels' => $labels,
         ];
@@ -59,8 +69,30 @@ class KelompokUmurChart extends ChartWidget
         return 'Sebaran Kelompok Umur ('.Anggota::query()->count().')';
     }
 
+    public function getDescription(): string|Htmlable|null
+    {
+        return WilayahScope::label(auth()->user()).' · Nilai 0 tetap ditampilkan pada label.';
+    }
+
     protected function getOptions(): array
     {
-        return ['indexAxis' => 'y'];
+        return [
+            'indexAxis' => 'y',
+            'plugins' => [
+                'legend' => ['display' => false],
+                'tooltip' => ['enabled' => true, 'intersect' => false],
+            ],
+            'scales' => [
+                'x' => [
+                    'beginAtZero' => true,
+                    'grid' => ['color' => '#f1f2f4'],
+                    'ticks' => ['color' => '#6b7280', 'font' => ['size' => 11], 'precision' => 0],
+                ],
+                'y' => [
+                    'grid' => ['display' => false],
+                    'ticks' => ['color' => '#4b5563', 'font' => ['size' => 11]],
+                ],
+            ],
+        ];
     }
 }

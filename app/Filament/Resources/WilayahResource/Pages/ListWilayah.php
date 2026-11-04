@@ -22,18 +22,70 @@ class ListWilayah extends ListRecords
     #[Url(as: 'mode')]
     public string $mode = 'hirarki';
 
+    // Tab gabungan: Jelajah (operasional) dan Master (pengelolaan wilayah).
+    #[Url(as: 'tab')]
+    public string $tab = 'master';
+
+    #[Url(as: 'level')]
+    public string $levelFilter = '';
+
+    // Node yang dipilih saat membuka tab Jelajah lewat tautan langsung.
+    #[Url(as: 'wilayah')]
+    public ?int $wilayahId = null;
+
     public function mount(): void
     {
         parent::mount();
 
         $user = auth()->user();
+
+        if ($user?->isAdminRt() || ! $this->bolehMaster()) {
+            $this->tab = 'jelajah';
+        }
+
         if ($user?->isAdminRw() && $user->id_wilayah && $this->parentId === null && $this->mode === 'hirarki') {
             $this->parentId = $user->id_wilayah;
         }
     }
 
+    public function getTitle(): string
+    {
+        return $this->tab === 'jelajah' ? 'Jelajah Wilayah' : 'Master Wilayah';
+    }
+
+    public function getBreadcrumb(): string
+    {
+        return $this->tab === 'jelajah' ? 'Jelajah' : 'Master';
+    }
+
+    public function bolehMaster(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) ($user?->isSuperadmin() || $user?->isAdmin() || $user?->isAdminRw());
+    }
+
+    public function titikAwalJelajah(): ?Wilayah
+    {
+        if ($this->wilayahId !== null) {
+            return Wilayah::find($this->wilayahId);
+        }
+
+        $user = auth()->user();
+
+        if ($user?->isSuperadmin() || $user?->isAdmin()) {
+            return Wilayah::where('level', 'negara')->orderBy('path')->first();
+        }
+
+        return $user?->wilayah;
+    }
+
     protected function getHeaderActions(): array
     {
+        if ($this->tab === 'jelajah') {
+            return [];
+        }
+
         return [
             CreateAction::make()
                 ->label('Tambah wilayah')
@@ -45,12 +97,27 @@ class ListWilayah extends ListRecords
 
     protected function getTableQuery(): Builder
     {
-        $query = parent::getTableQuery()->with(['parent']);
+        // Tabel master tidak dirender saat tab Jelajah aktif.
+        if ($this->tab === 'jelajah') {
+            return parent::getTableQuery()->whereRaw('1 = 0');
+        }
+
+        $query = parent::getTableQuery()->with([Wilayah::RELASI_LELUHUR]);
         $user = auth()->user();
+
+        if (filled($this->levelFilter)) {
+            $parent = $this->currentParent();
+
+            if ($parent !== null) {
+                $query->where('path', 'like', $parent->path.'%')->whereKeyNot($parent->getKey());
+            }
+
+            return $query->where('level', $this->levelFilter);
+        }
 
         // Mode flat / semua: tampilkan seluruh wilayah sesuai hak akses pengguna
         if ($this->mode === 'semua') {
-            return $query;
+            return $this->applyLevelFilter($query);
         }
 
         // Jika ada pencarian di kotak cari tabel
@@ -58,30 +125,37 @@ class ListWilayah extends ListRecords
             if ($this->parentId !== null) {
                 $parent = $this->currentParent();
                 if ($parent) {
-                    return $query->where('path', 'like', $parent->path.'%')->whereKeyNot($parent->getKey());
+                    return $this->applyLevelFilter($query->where('path', 'like', $parent->path.'%')->whereKeyNot($parent->getKey()));
                 }
             }
 
-            return $query;
+            return $this->applyLevelFilter($query);
         }
 
         // Khusus petugas RW:
         if ($user?->isAdminRw()) {
             $parent = $this->currentParent();
             if ($parent) {
-                return $query->where('parent_id', $parent->id);
+                return $this->applyLevelFilter($query->where('parent_id', $parent->id));
             }
 
-            return $query->where('id', $user->id_wilayah);
+            return $this->applyLevelFilter($query->where('id', $user->id_wilayah));
         }
 
         // Superadmin & Admin di level akar:
         if ($this->parentId === null) {
-            return $query->whereNull('parent_id');
+            return $this->applyLevelFilter($query->whereNull('parent_id'));
         }
 
         // Superadmin & Admin di bawah induk terpilih:
-        return $query->where('parent_id', $this->parentId);
+        return $this->applyLevelFilter($query->where('parent_id', $this->parentId));
+    }
+
+    protected function applyLevelFilter(Builder $query): Builder
+    {
+        return filled($this->levelFilter)
+            ? $query->where('level', $this->levelFilter)
+            : $query;
     }
 
     public function currentParent(): ?Wilayah
@@ -154,6 +228,30 @@ class ListWilayah extends ListRecords
         $this->resetTable();
     }
 
+    public function updatedLevelFilter(): void
+    {
+        $this->resetTable();
+    }
+
+    public function resetWilayahFilter(): void
+    {
+        $this->tableSearch = '';
+        $this->levelFilter = '';
+        $this->resetTable();
+    }
+
+    public function updatedTab(): void
+    {
+        $this->activeTab = null;
+        unset($this->cachedTabs);
+        $this->resetTable();
+    }
+
+    public function updatedWilayahId(): void
+    {
+        $this->resetTable();
+    }
+
     public function getTabs(): array
     {
         if ($this->mode !== 'hirarki' || $this->parentId === null) {
@@ -166,16 +264,21 @@ class ListWilayah extends ListRecords
         }
 
         $anak = $parent->children();
-        $levels = (clone $anak)->distinct()->pluck('level')->all();
+        $jumlahPerLevel = (clone $anak)
+            ->selectRaw('level, COUNT(*) as total')
+            ->groupBy('level')
+            ->pluck('total', 'level');
+
+        $levels = $jumlahPerLevel->keys()->all();
 
         // Jika anak seragam (misal hanya provinsi, hanya RW, atau hanya RT), tidak perlu tab.
         if (count($levels) <= 1) {
             return [];
         }
 
-        $total = (clone $anak)->count();
-        $dusunCount = (clone $anak)->where('level', 'dusun')->count();
-        $rwCount = (clone $anak)->where('level', 'rw')->count();
+        $total = (int) $jumlahPerLevel->sum();
+        $dusunCount = (int) ($jumlahPerLevel['dusun'] ?? 0);
+        $rwCount = (int) ($jumlahPerLevel['rw'] ?? 0);
 
         $tabs = [
             'semua' => Tab::make('Semua Turunan')
@@ -198,7 +301,7 @@ class ListWilayah extends ListRecords
 
         $otherLevels = array_diff($levels, ['dusun', 'rw']);
         foreach ($otherLevels as $lvl) {
-            $cnt = (clone $anak)->where('level', $lvl)->count();
+            $cnt = (int) ($jumlahPerLevel[$lvl] ?? 0);
             $tabs[$lvl] = Tab::make(Wilayah::labelLevel($lvl))
                 ->badge($cnt)
                 ->modifyQueryUsing(fn (Builder $query): Builder => $query->where('level', $lvl));

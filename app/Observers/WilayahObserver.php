@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\Wilayah;
+use App\Support\OperationalGuard;
 use Illuminate\Validation\ValidationException;
 
 // Menegakkan aturan hierarki di level model, sehingga seeder, console, dan
@@ -12,6 +13,9 @@ class WilayahObserver
 {
     public function creating(Wilayah $wilayah): void
     {
+        if ($wilayah->parent_id && $wilayah->sumber !== 'kemendagri') {
+            OperationalGuard::wilayah($wilayah->parent_id);
+        }
         $this->validasi($wilayah);
     }
 

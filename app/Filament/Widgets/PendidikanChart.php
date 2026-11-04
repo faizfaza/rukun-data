@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Anggota;
+use App\Support\WilayahScope;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Contracts\Support\Htmlable;
 
@@ -11,6 +12,10 @@ use Illuminate\Contracts\Support\Htmlable;
 class PendidikanChart extends ChartWidget
 {
     protected static ?int $sort = 5;
+
+    protected static bool $isLazy = false;
+
+    protected ?string $maxHeight = '17rem';
 
     protected ?string $heading = 'Sebaran Pendidikan';
 
@@ -32,7 +37,7 @@ class PendidikanChart extends ChartWidget
             'datasets' => [[
                 'label' => 'Anggota',
                 'data' => $rows->pluck('total')->all(),
-                'backgroundColor' => '#0f766e',
+                'backgroundColor' => ['#0b0f14', '#4755ae', '#8b8fc7', '#c3c7e3', '#6b7280', '#9ca3af', '#d1d5db', '#e5e7eb'],
             ]],
             'labels' => $rows->pluck('label')->all(),
         ];
@@ -44,9 +49,31 @@ class PendidikanChart extends ChartWidget
         return 'Sebaran Pendidikan ('.Anggota::query()->count().')';
     }
 
+    public function getDescription(): string|Htmlable|null
+    {
+        return WilayahScope::label(auth()->user());
+    }
+
     // DESIGN.md §7.5: grafik batang horizontal.
     protected function getOptions(): array
     {
-        return ['indexAxis' => 'y'];
+        return [
+            'indexAxis' => 'y',
+            'plugins' => [
+                'legend' => ['display' => false],
+                'tooltip' => ['enabled' => true, 'intersect' => false],
+            ],
+            'scales' => [
+                'x' => [
+                    'beginAtZero' => true,
+                    'grid' => ['color' => '#f1f2f4'],
+                    'ticks' => ['color' => '#6b7280', 'font' => ['size' => 11], 'precision' => 0],
+                ],
+                'y' => [
+                    'grid' => ['display' => false],
+                    'ticks' => ['color' => '#4b5563', 'font' => ['size' => 11]],
+                ],
+            ],
+        ];
     }
 }

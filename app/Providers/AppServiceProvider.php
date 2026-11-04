@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Wilayah;
 use App\Observers\AuditObserver;
 use App\Observers\WilayahObserver;
+use App\Support\OperationalGuard;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -28,6 +29,9 @@ class AppServiceProvider extends ServiceProvider
     {
         // Aturan hierarki wilayah ditegakkan di model (seeder/console/filament).
         Wilayah::observe(WilayahObserver::class);
+        foreach ([Keluarga::class, Anggota::class, User::class] as $model) {
+            $model::observe(OperationalGuard::class);
+        }
 
         Keluarga::observe(AuditObserver::class);
         Anggota::observe(AuditObserver::class);

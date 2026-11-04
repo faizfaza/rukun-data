@@ -247,13 +247,12 @@ class JelajahWilayahTest extends TestCase
 
         $this->get('/admin/jelajah')
             ->assertOk()
-            ->assertSee('Wilayah Penugasan RT Anda')
+            ->assertSee('Wilayah tugas')
             ->assertSee('RW 001')
             ->assertSee('Desa Uji')
             ->assertSee('Kecamatan Uji')
             ->assertSee('Kabupaten Uji')
-            ->assertSee('Provinsi Uji')
-            ->assertSee('Negara Uji');
+            ->assertSee('Provinsi Uji');
     }
 
     public function test_pencarian_no_kk_persis(): void

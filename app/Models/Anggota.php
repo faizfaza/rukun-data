@@ -17,17 +17,18 @@ class Anggota extends Model
     protected $table = 'anggota';
 
     protected $fillable = [
+        'profil',
         'id_keluarga', 'nik', 'nama_lengkap', 'tempat_lahir', 'tanggal_lahir',
         'jenis_kelamin', 'status_kawin', 'id_agama', 'id_pendidikan',
         'id_pekerjaan', 'id_hubungan', 'nama_ayah', 'nama_ibu', 'penghasilan_bulanan',
         'created_by',
     ];
 
-    protected $hidden = ['nik', 'nama_lengkap', 'nama_ayah', 'nama_ibu', 'penghasilan_bulanan'];
+    protected $hidden = ['profil', 'nik', 'nama_lengkap', 'nama_ayah', 'nama_ibu', 'penghasilan_bulanan'];
 
     protected function casts(): array
     {
-        return ['tanggal_lahir' => 'date'];
+        return ['tanggal_lahir' => 'date', 'profil' => 'encrypted:array'];
     }
 
     protected static function booted(): void

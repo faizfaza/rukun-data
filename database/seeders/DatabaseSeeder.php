@@ -11,9 +11,11 @@ use App\Models\RefHubungan;
 use App\Models\RefPekerjaan;
 use App\Models\RefPendidikan;
 use App\Models\User;
+use App\Models\Wilayah;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 // Keputusan 4/6: akun contoh untuk tiga peran. Password dev semuanya
 // "password". Data keluarga/anggota tetap dummy fiktif (PRD §11).
@@ -24,7 +26,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->seedRefs();
-        $wilayah = WilayahContohSeeder::pohon();
+        $wilayah = WilayahSeeder::pohon();
         $users = $this->seedUsers($wilayah);
         $this->seedKeluarga($wilayah, $users);
     }
@@ -60,30 +62,80 @@ class DatabaseSeeder extends Seeder
         $users['superadmin'] = $this->buatUser('superadmin', 'Superadmin', Role::Superadmin, null);
         $users['admin'] = $this->buatUser('admin', 'Admin Wilayah', Role::Admin, null, $users['superadmin']->id);
 
-        $users['adminrw01'] = $this->buatUser('adminrw01', 'Admin RW 01', Role::AdminRw, $wilayah['rw01']->id, $users['superadmin']->id);
-        $users['adminrw02'] = $this->buatUser('adminrw02', 'Admin RW 02', Role::AdminRw, $wilayah['rw02']->id, $users['superadmin']->id);
+        $pembuatRw = [];
 
-        $petaRt = [
-            'adminrt0101' => ['rw01-01', 'adminrw01'],
-            'adminrt0102' => ['rw01-02', 'adminrw01'],
-            'adminrt0201' => ['rw02-01', 'adminrw02'],
-            'adminrt0202' => ['rw02-02', 'adminrw02'],
-            'adminrt0203' => ['rw02-03', 'adminrw02'],
-        ];
-
-        foreach ($petaRt as $username => [$rtKey, $pembuat]) {
-            $nomor = substr($rtKey, -5);
+        foreach (['rw01', 'rw02'] as $rwKey) {
+            $rw = $wilayah[$rwKey];
+            $username = $this->usernameWilayah($rw);
 
             $users[$username] = $this->buatUser(
                 $username,
-                'Admin RT '.substr($nomor, 3).' RW '.substr($nomor, 0, 2),
+                'Admin '.$rw->nama.' '.$rw->rantaiIndukNama(),
+                Role::AdminRw,
+                $rw->id,
+                $users['superadmin']->id,
+            );
+
+            $pembuatRw[$rwKey] = $username;
+        }
+
+        $petaRt = [
+            'rw01-01' => 'rw01',
+            'rw01-02' => 'rw01',
+            'rw02-01' => 'rw02',
+            'rw02-02' => 'rw02',
+            'rw02-03' => 'rw02',
+        ];
+
+        foreach ($petaRt as $rtKey => $rwKey) {
+            $rt = $wilayah['rt'][$rtKey];
+            $username = $this->usernameWilayah($rt);
+
+            $users[$username] = $this->buatUser(
+                $username,
+                'Admin '.$rt->nama.' '.$rt->rantaiIndukNama(),
                 Role::AdminRt,
-                $wilayah['rt'][$rtKey]->id,
-                $users[$pembuat]->id,
+                $rt->id,
+                $users[$pembuatRw[$rwKey]]->id,
             );
         }
 
         return $users;
+    }
+
+    // Username memakai RW/RT + nama kabupaten/kecamatan/desa agar RW/RT
+    // bernomor sama di wilayah lain tidak bertabrakan.
+    private function usernameWilayah(Wilayah $wilayah): string
+    {
+        $rw = $wilayah->ancestors()->firstWhere('level', 'rw');
+        $peran = ($rw !== null ? $this->slugWilayah($rw->nama) : '').$this->slugWilayah($wilayah->nama);
+
+        $wilayahInduk = $wilayah->ancestors()
+            ->whereIn('level', ['kabupaten_kota', 'kecamatan', 'desa'])
+            ->pluck('nama');
+
+        $token = [];
+
+        foreach ($wilayahInduk as $nama) {
+            $slug = $this->slugWilayah($nama);
+
+            if ($slug !== '' && $slug !== end($token)) {
+                $token[] = $slug;
+            }
+        }
+
+        $username = 'admin'.$peran.implode('', $token);
+
+        if (strlen($username) > 50) {
+            $username = substr($username, 0, 41).substr(md5((string) $wilayah->path), 0, 8);
+        }
+
+        return $username;
+    }
+
+    private function slugWilayah(string $nama): string
+    {
+        return preg_replace('/[^a-z0-9]/', '', Str::lower(Str::ascii($nama))) ?? '';
     }
 
     private function buatUser(string $username, string $nama, Role $role, ?int $idWilayah, ?int $createdBy = null): User
@@ -140,13 +192,11 @@ class DatabaseSeeder extends Seeder
             ], 'Miskin'),
         ];
 
-        $pembuatRt = [
-            'rw01-01' => 'adminrt0101',
-            'rw01-02' => 'adminrt0102',
-            'rw02-01' => 'adminrt0201',
-            'rw02-02' => 'adminrt0202',
-            'rw02-03' => 'adminrt0203',
-        ];
+        $pembuatRt = [];
+
+        foreach (array_keys($wilayah['rt']) as $rtKey) {
+            $pembuatRt[$rtKey] = $this->usernameWilayah($wilayah['rt'][$rtKey]);
+        }
 
         foreach ($data as $row) {
             $createdBy = $users[$pembuatRt[$row['rt']]]->id;

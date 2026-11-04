@@ -3,6 +3,8 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\KeluargaResource\Pages;
+use App\Filament\Schemas\Profil;
+use App\Models\Anggota;
 use App\Models\Keluarga;
 use App\Models\RefAgama;
 use App\Models\RefHubungan;
@@ -64,7 +66,7 @@ class KeluargaResource extends Resource
                 ->schema([
                     Select::make('provinsi_id')
                         ->label('1. Provinsi')
-                        ->options(fn (): array => Wilayah::where('level', 'provinsi')->orderBy('nama')->pluck('nama', 'id')->all())
+                        ->options(fn (): array => Wilayah::operasional()->where('level', 'provinsi')->orderBy('nama')->pluck('nama', 'id')->all())
                         ->searchable()
                         ->preload()
                         ->live()
@@ -81,7 +83,7 @@ class KeluargaResource extends Resource
 
                     Select::make('kabkota_id')
                         ->label('2. Kabupaten/Kota')
-                        ->options(fn (Get $get): array => Wilayah::where('level', 'kabupaten_kota')
+                        ->options(fn (Get $get): array => Wilayah::operasional()->where('level', 'kabupaten_kota')
                             ->when($get('provinsi_id'), fn (Builder $q, $pid): Builder => $q->where('parent_id', $pid))
                             ->orderBy('nama')
                             ->pluck('nama', 'id')
@@ -102,7 +104,7 @@ class KeluargaResource extends Resource
 
                     Select::make('kecamatan_id')
                         ->label('3. Kecamatan')
-                        ->options(fn (Get $get): array => Wilayah::where('level', 'kecamatan')
+                        ->options(fn (Get $get): array => Wilayah::operasional()->where('level', 'kecamatan')
                             ->when($get('kabkota_id'), fn (Builder $q, $kid): Builder => $q->where('parent_id', $kid))
                             ->orderBy('nama')
                             ->pluck('nama', 'id')
@@ -122,7 +124,7 @@ class KeluargaResource extends Resource
 
                     Select::make('kelurahan_id')
                         ->label('4. Desa/Kelurahan')
-                        ->options(fn (Get $get): array => Wilayah::where('level', 'desa')
+                        ->options(fn (Get $get): array => Wilayah::operasional()->where('level', 'desa')
                             ->when($get('kecamatan_id'), fn (Builder $q, $kid): Builder => $q->where('parent_id', $kid))
                             ->orderBy('nama')
                             ->pluck('nama', 'id')
@@ -147,12 +149,12 @@ class KeluargaResource extends Resource
                                 return [];
                             }
 
-                            $dusunIds = Wilayah::where('level', 'dusun')
+                            $dusunIds = Wilayah::operasional()->where('level', 'dusun')
                                 ->where('parent_id', $desaId)
                                 ->pluck('id')
                                 ->all();
 
-                            return Wilayah::where('level', 'rw')
+                            return Wilayah::operasional()->where('level', 'rw')
                                 ->where(function (Builder $q) use ($desaId, $dusunIds): void {
                                     $q->where('parent_id', $desaId);
                                     if ($dusunIds !== []) {
@@ -187,7 +189,7 @@ class KeluargaResource extends Resource
 
                     Select::make('id_wilayah')
                         ->label(fn (): string => auth()->user()?->isSuperadmin() || auth()->user()?->isAdmin() ? '6. RT (Tujuan)' : 'RT')
-                        ->options(fn (Get $get, ?Keluarga $record): array => static::rtOptions($get('rw_id'), $get('id_wilayah') ?: $record?->id_wilayah ?: request()->integer('id_wilayah')))
+                        ->options(fn (Get $get, ?Keluarga $record): array => static::rtOptions($get('rw_id'), $get('id_wilayah') ?: $record?->id_wilayah ?: request()->integer('id_wilayah')) + ($record ? [$record->id_wilayah => $record->wilayah->alamatLengkap()] : []))
                         ->searchable()
                         ->preload()
                         ->live()
@@ -260,12 +262,13 @@ class KeluargaResource extends Resource
             // berbagi satu baris, sedangkan bagian anggota dibuat lebar penuh
             // supaya daftar anggota yang panjang tidak menyisakan ruang kosong.
             Grid::make(2)->schema([
-                Section::make('Data Keluarga')->schema([
+                Section::make('Data Keluarga')->description(fn (?Keluarga $record) => $record && ! $record->wilayah->aktifEfektif() ? 'Wilayah nonaktif: koreksi data lama diperbolehkan; penambahan data baru diblokir sampai wilayah dan induknya aktif.' : null)->schema([
                     TextInput::make('no_kk')
                         ->label('No KK')
                         ->required()
                         ->length(16)
                         ->rule('regex:/^[0-9]{16}$/')
+                        ->formatStateUsing(fn (?string $state, ?Keluarga $record = null): ?string => $state ?? $record?->no_kk)
                         ->validationMessages(['regex' => 'No KK harus 16 digit angka.']),
                     TextInput::make('kode_pos')
                         ->label('Kode Pos')
@@ -276,12 +279,21 @@ class KeluargaResource extends Resource
                         ->label('Alamat')
                         ->required()
                         ->maxLength(500)
+                        ->formatStateUsing(fn (?string $state, ?Keluarga $record = null): ?string => $state ?? $record?->alamat)
                         ->columnSpanFull(),
                 ])->columns(2),
 
                 Section::make('Data Ekonomi')->schema([
                     Repeater::make('ekonomi')
                         ->relationship()
+                        ->mutateRelationshipDataBeforeFillUsing(function (array $data, ?Keluarga $record): array {
+                            $item = $record?->ekonomi->firstWhere('id', $data['id'] ?? null);
+                            if ($item) {
+                                $data['kategori_ekonomi'] = $item->kategori_ekonomi;
+                            }
+
+                            return $data;
+                        })
                         ->label('')
                         ->maxItems(1)
                         ->defaultItems(0)
@@ -311,9 +323,23 @@ class KeluargaResource extends Resource
             Section::make('Anggota Keluarga')->schema([
                 Repeater::make('anggota')
                     ->relationship()
+                    ->mutateRelationshipDataBeforeFillUsing(function (array $data, ?Keluarga $record): array {
+                        $item = $record?->anggota->firstWhere('id', $data['id'] ?? null);
+                        if ($item) {
+                            $data['nik'] = $item->nik;
+                            $data['nama_lengkap'] = $item->nama_lengkap;
+                            $data['nama_ayah'] = $item->nama_ayah;
+                            $data['nama_ibu'] = $item->nama_ibu;
+                            $data['penghasilan_bulanan'] = $item->penghasilan_bulanan;
+                            $data['profil'] = $item->profil;
+                        }
+
+                        return $data;
+                    })
                     ->label('')
                     ->minItems(1)
                     ->addActionLabel('Tambah anggota')
+                    ->helperText('Ikon tempat sampah pada kartu anggota menghapus anggota tersebut setelah Simpan keluarga ditekan.')
                     // DESIGN.md §7.3.2: kartu anggota bisa dibuka/tutup dan kartu
                     // pertama otomatis berhubungan "Kepala keluarga".
                     ->collapsible()
@@ -324,11 +350,13 @@ class KeluargaResource extends Resource
                             ->label('NIK')
                             ->required()
                             ->length(16)
-                            ->rule('regex:/^[0-9]{16}$/'),
+                            ->rule('regex:/^[0-9]{16}$/')
+                            ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nik),
                         TextInput::make('nama_lengkap')
                             ->label('Nama lengkap')
                             ->required()
-                            ->maxLength(100),
+                            ->maxLength(100)
+                            ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nama_lengkap),
                         TextInput::make('tempat_lahir')
                             ->label('Tempat lahir')
                             ->required()
@@ -341,7 +369,7 @@ class KeluargaResource extends Resource
                             ->label('Jenis kelamin')
                             ->options(['L' => 'Laki-laki', 'P' => 'Perempuan'])
                             ->required(),
-                        Select::make('status_kawin')
+                        Select::make('status_kawin')->live()
                             ->label('Status kawin')
                             ->options([
                                 'belum_kawin' => 'Belum kawin',
@@ -367,14 +395,18 @@ class KeluargaResource extends Resource
                             ->options(RefHubungan::pluck('nama', 'id'))
                             ->required()
                             ->live(),
+                        ...Profil::anggota(),
                         TextInput::make('nama_ayah')
-                            ->label('Nama ayah'),
+                            ->label('Nama ayah')
+                            ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nama_ayah),
                         TextInput::make('nama_ibu')
-                            ->label('Nama ibu'),
+                            ->label('Nama ibu')
+                            ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nama_ibu),
                         TextInput::make('penghasilan_bulanan')
                             ->label('Penghasilan/bulan (Rp)')
                             ->numeric()
-                            ->minValue(0),
+                            ->minValue(0)
+                            ->formatStateUsing(fn ($state, ?Anggota $record = null) => $state ?? $record?->penghasilan_bulanan),
                     ]),
             ]),
         ])
@@ -440,7 +472,12 @@ class KeluargaResource extends Resource
                     )),
                 TrashedFilter::make(),
             ])
-            ->actions([ViewAction::make(), EditAction::make(), DeleteAction::make(), RestoreAction::make()])
+            ->actions([
+                ViewAction::make()->iconButton()->tooltip('Lihat'),
+                EditAction::make()->iconButton()->tooltip('Ubah'),
+                DeleteAction::make()->iconButton()->tooltip('Hapus'),
+                RestoreAction::make()->iconButton()->tooltip('Pulihkan'),
+            ])
             ->bulkActions([DeleteBulkAction::make()]);
     }
 
@@ -498,7 +535,7 @@ class KeluargaResource extends Resource
 
         // 2. Petugas RW: hanya RT di bawah RW penugasan
         if ($user?->isAdminRw() && $user->id_wilayah) {
-            return Wilayah::where('level', 'rt')
+            return Wilayah::operasional()->where('level', 'rt')
                 ->where('parent_id', $user->id_wilayah)
                 ->orderBy('kode')
                 ->pluck('nama', 'id')
@@ -507,7 +544,7 @@ class KeluargaResource extends Resource
 
         // 3. Jika ada RW terpilih pada cascading dropdown
         if ($rwId) {
-            return Wilayah::where('level', 'rt')
+            return Wilayah::operasional()->where('level', 'rt')
                 ->where('parent_id', $rwId)
                 ->orderBy('kode')
                 ->pluck('nama', 'id')
@@ -524,7 +561,10 @@ class KeluargaResource extends Resource
 
         // 5. Fallback semua RT yang diizinkan
         $ids = WilayahAccess::allowedRtIds($user);
-        $query = Wilayah::where('level', 'rt')->orderBy('path');
+        $query = Wilayah::operasional()
+            ->with([Wilayah::RELASI_LELUHUR])
+            ->where('level', 'rt')
+            ->orderBy('path');
         if ($ids !== null) {
             $query->whereIn('id', $ids);
         }

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\KeluargaResource\Pages;
 
 use App\Filament\Resources\KeluargaResource;
+use App\Filament\Schemas\Profil;
 use App\Models\Anggota;
 use App\Models\Keluarga;
 use Filament\Actions\DeleteAction;
@@ -43,25 +44,28 @@ class ViewKeluarga extends ViewRecord
                     TextEntry::make('kode_pos')->label('Kode pos'),
                 ])->columns(3),
 
-            Section::make('Anggota')->schema([
-                RepeatableEntry::make('anggota')
-                    ->label('')
-                    ->schema([
-                        TextEntry::make('nik')
-                            ->label('NIK')
-                            ->icon(fn (): ?string => auth()->user()?->bolehLihatDataPenuh() ? null : 'heroicon-m-lock-closed')
-                            ->formatStateUsing(fn (?string $state, Anggota $record): ?string => auth()->user()?->bolehLihatDataPenuh()
-                                ? $state
-                                : $record->nik_masked),
-                        TextEntry::make('nama_lengkap')->label('Nama'),
-                        TextEntry::make('hubungan.nama')->label('Hubungan'),
-                        TextEntry::make('jenis_kelamin')->label('L/P'),
-                        TextEntry::make('tanggal_lahir')->label('Lahir')->date('d M Y'),
-                        TextEntry::make('pendidikan.nama')->label('Pendidikan'),
-                        TextEntry::make('pekerjaan.nama')->label('Pekerjaan'),
-                    ])
-                    ->columns(4),
-            ]),
+            Section::make('Anggota')
+                ->description('Untuk menghapus satu anggota, buka Ubah lalu gunakan ikon tempat sampah pada kartu anggota, kemudian Simpan keluarga.')
+                ->schema([
+                    RepeatableEntry::make('anggota')
+                        ->label('')
+                        ->schema([
+                            TextEntry::make('nik')
+                                ->label('NIK')
+                                ->icon(fn (): ?string => auth()->user()?->bolehLihatDataPenuh() ? null : 'heroicon-m-lock-closed')
+                                ->formatStateUsing(fn (?string $state, Anggota $record): ?string => auth()->user()?->bolehLihatDataPenuh()
+                                    ? $state
+                                    : $record->nik_masked),
+                            TextEntry::make('nama_lengkap')->label('Nama'),
+                            TextEntry::make('hubungan.nama')->label('Hubungan'),
+                            TextEntry::make('jenis_kelamin')->label('L/P'),
+                            TextEntry::make('tanggal_lahir')->label('Lahir')->date('d M Y'),
+                            TextEntry::make('pendidikan.nama')->label('Pendidikan'),
+                            TextEntry::make('pekerjaan.nama')->label('Pekerjaan'),
+                            ...Profil::detail(),
+                        ])
+                        ->columns(4),
+                ]),
 
             Section::make('Ekonomi')->schema([
                 RepeatableEntry::make('ekonomi')

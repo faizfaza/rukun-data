@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Anggota;
+use App\Support\WilayahScope;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Contracts\Support\Htmlable;
 
@@ -11,6 +12,10 @@ use Illuminate\Contracts\Support\Htmlable;
 class JenisKelaminChart extends ChartWidget
 {
     protected static ?int $sort = 4;
+
+    protected static bool $isLazy = false;
+
+    protected ?string $maxHeight = '18rem';
 
     protected ?string $heading = 'Komposisi Jenis Kelamin';
 
@@ -30,7 +35,7 @@ class JenisKelaminChart extends ChartWidget
             'datasets' => [[
                 'label' => 'Anggota',
                 'data' => [(int) ($rows['L'] ?? 0), (int) ($rows['P'] ?? 0)],
-                'backgroundColor' => ['#0f766e', '#2dd4bf'],
+                'backgroundColor' => ['#0b0f14', '#4755ae'],
             ]],
             'labels' => ['Laki-laki', 'Perempuan'],
         ];
@@ -39,5 +44,30 @@ class JenisKelaminChart extends ChartWidget
     public function getHeading(): string|Htmlable|null
     {
         return 'Komposisi Jenis Kelamin ('.Anggota::query()->count().')';
+    }
+
+    public function getDescription(): string|Htmlable|null
+    {
+        return WilayahScope::label(auth()->user());
+    }
+
+    protected function getOptions(): array
+    {
+        return [
+            'cutout' => '68%',
+            'plugins' => [
+                'legend' => [
+                    'position' => 'bottom',
+                    'labels' => [
+                        'color' => '#4b5563',
+                        'boxWidth' => 8,
+                        'boxHeight' => 8,
+                        'usePointStyle' => true,
+                        'padding' => 18,
+                        'font' => ['size' => 11],
+                    ],
+                ],
+            ],
+        ];
     }
 }

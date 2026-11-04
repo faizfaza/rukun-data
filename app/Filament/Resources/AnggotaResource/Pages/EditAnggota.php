@@ -13,6 +13,18 @@ use Illuminate\Validation\ValidationException;
 
 class EditAnggota extends EditRecord
 {
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $data['nik'] = $this->record->nik;
+        $data['nama_lengkap'] = $this->record->nama_lengkap;
+        $data['nama_ayah'] = $this->record->nama_ayah;
+        $data['nama_ibu'] = $this->record->nama_ibu;
+        $data['penghasilan_bulanan'] = $this->record->penghasilan_bulanan;
+        $data['profil'] = $this->record->profil;
+
+        return $data;
+    }
+
     protected static string $resource = AnggotaResource::class;
 
     protected function mutateFormDataBeforeSave(array $data): array

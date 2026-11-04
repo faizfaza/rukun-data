@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Pages\JelajahWilayah;
 use App\Filament\Resources\AnggotaResource\Pages;
+use App\Filament\Schemas\Profil;
 use App\Models\Anggota;
 use App\Models\RefAgama;
 use App\Models\RefHubungan;
@@ -55,11 +56,13 @@ class AnggotaResource extends Resource
                     ->label('NIK')
                     ->required()
                     ->length(16)
-                    ->rule('regex:/^[0-9]{16}$/'),
+                    ->rule('regex:/^[0-9]{16}$/')
+                    ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nik),
                 TextInput::make('nama_lengkap')
                     ->label('Nama lengkap')
                     ->required()
-                    ->maxLength(100),
+                    ->maxLength(100)
+                    ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nama_lengkap),
                 TextInput::make('tempat_lahir')
                     ->label('Tempat lahir')
                     ->required()
@@ -72,7 +75,7 @@ class AnggotaResource extends Resource
                     ->label('Jenis kelamin')
                     ->options(['L' => 'Laki-laki', 'P' => 'Perempuan'])
                     ->required(),
-                Select::make('status_kawin')
+                Select::make('status_kawin')->live()
                     ->label('Status kawin')
                     ->options([
                         'belum_kawin' => 'Belum kawin',
@@ -97,12 +100,18 @@ class AnggotaResource extends Resource
                     ->label('Hubungan')
                     ->options(RefHubungan::pluck('nama', 'id'))
                     ->required(),
-                TextInput::make('nama_ayah')->label('Nama ayah'),
-                TextInput::make('nama_ibu')->label('Nama ibu'),
+                ...Profil::anggota(),
+                TextInput::make('nama_ayah')
+                    ->label('Nama ayah')
+                    ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nama_ayah),
+                TextInput::make('nama_ibu')
+                    ->label('Nama ibu')
+                    ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nama_ibu),
                 TextInput::make('penghasilan_bulanan')
                     ->label('Penghasilan/bulan (Rp)')
                     ->numeric()
-                    ->minValue(0),
+                    ->minValue(0)
+                    ->formatStateUsing(fn ($state, ?Anggota $record = null) => $state ?? $record?->penghasilan_bulanan),
             ])->columns(3),
         ]);
     }

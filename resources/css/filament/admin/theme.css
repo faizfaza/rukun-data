@@ -4,88 +4,497 @@
 @source '../../../../resources/views/filament/**/*';
 
 /*
- * Tema Rukun Data — token mengikuti DESIGN.md §4, §5, §6, §8, §10.
- * Aturan di bawah sengaja ditulis di luar layer Tailwind Filament agar
- * menang atas utility bawaan tanpa perlu !important.
+ * Tema "Rukun Data" — arah visual HRISELINK, detail gerak Bencho.
+ * Permukaan terang, aksen near-black, biru indigo sebagai aksen sekunder.
  */
 :root {
-    --rukun-navy: #0f2a4a;
-    --rukun-navy-dark: #0a1f38;
-    --rukun-teal: #0f766e;
-    --rukun-teal-light: #2dd4bf;
-    --rukun-bg: #f4f6f9;
+    --rd-canvas: #f3f4f6;
+    --rd-surface: #ffffff;
+    --rd-surface-muted: #f9fafb;
+    --rd-ink: #0b0f14;
+    --rd-ink-soft: #374151;
+    --rd-muted: #6b7280;
+    --rd-muted-soft: #9ca3af;
+    --rd-line: #e5e7eb;
+    --rd-line-strong: #d1d5db;
+    --rd-accent: #4755ae;
+    --rd-accent-soft: #eef0fa;
+    --rd-success: #067647;
+    --rd-success-soft: #ecfdf3;
+    --rd-warning: #b54708;
+    --rd-warning-soft: #fffaeb;
+    --rd-danger: #b42318;
+    --rd-danger-soft: #fef3f2;
+    --rd-radius-xl: 18px;
+    --rd-radius-lg: 14px;
+    --rd-radius-md: 11px;
+    --rd-shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 18px 40px -28px rgb(16 24 40 / 0.24);
+    --rd-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* DESIGN.md §4: latar area konten. */
+html.fi {
+    --livewire-progress-bar-color: var(--rd-ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+/* ---------------------------------------------------------------- Base */
+
 .fi-body {
-    background-color: var(--rukun-bg);
+    background-color: var(--rd-canvas);
+    background-image: radial-gradient(120% 60% at 50% -20%, #ffffff 0%, rgb(255 255 255 / 0) 62%);
+    color: var(--rd-ink-soft);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
 
-/* DESIGN.md §6/§11.1: sidebar navy, kepala lebih gelap, menu aktif teal terang. */
+.fi-main-ctn {
+    background: transparent;
+}
+
+.fi-main {
+    padding-block: 1.25rem 2.5rem;
+    padding-inline: clamp(1rem, 2vw, 1.5rem);
+}
+
+.fi-page {
+    animation: rd-fade-up 420ms var(--rd-ease) both;
+}
+
+.fi-page-header-main-ctn {
+    gap: 1rem;
+    padding-block: 0;
+}
+
+.fi-page-content {
+    gap: 1rem;
+}
+
+/* ------------------------------------------------------------- Sidebar */
+
 .fi-sidebar {
-    background-color: var(--rukun-navy);
-    border-inline-end: 1px solid var(--rukun-navy-dark);
+    background-color: var(--rd-surface);
+    border-inline-end: 1px solid var(--rd-line);
+    box-shadow: 24px 0 60px -52px rgb(16 24 40 / 0.32);
 }
 
 .fi-sidebar-header {
-    background-color: var(--rukun-navy-dark);
+    background-color: var(--rd-surface);
+    border-bottom: 0;
+    padding: 1.15rem 1.15rem 0.85rem;
+}
+
+.fi-sidebar-header-logo-ctn {
+    gap: 0.65rem;
 }
 
 .fi-sidebar-header .fi-logo {
-    color: #ffffff;
+    align-items: center;
+    color: var(--rd-ink);
+    font-size: 1.02rem;
+    font-weight: 750;
+    letter-spacing: -0.035em;
+    gap: 0.6rem;
 }
 
-.fi-sidebar-nav .fi-sidebar-group-label {
-    color: #94a3b8;
+.fi-sidebar-header .fi-logo img,
+.fi-sidebar-header .fi-logo svg {
+    border-radius: 10px;
+    box-shadow: 0 6px 16px -10px rgb(11 15 20 / 0.6);
+}
+
+.fi-sidebar-nav {
+    padding: 0.4rem 0.75rem 1rem;
+}
+
+.fi-sidebar-nav-groups {
+    gap: 1.35rem;
+}
+
+.fi-sidebar-group-label {
+    color: var(--rd-muted);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding-inline: 0.65rem;
+}
+
+.fi-sidebar-group-btn {
+    padding-block: 0.35rem 0.45rem;
+}
+
+.fi-sidebar-item-btn {
+    border-radius: 10px;
+    color: var(--rd-ink-soft);
+    gap: 0.7rem;
+    padding: 0.56rem 0.7rem;
+    position: relative;
+    transition:
+        background-color 180ms var(--rd-ease),
+        color 180ms var(--rd-ease),
+        transform 180ms var(--rd-ease),
+        box-shadow 180ms var(--rd-ease);
 }
 
 .fi-sidebar-item-label {
-    color: #dbe4f0;
+    color: inherit;
+    font-size: 0.845rem;
+    font-weight: 560;
+    letter-spacing: -0.01em;
 }
 
-.fi-sidebar-item-btn > .fi-icon {
-    color: #94a3b8;
+.fi-sidebar-item-btn > .fi-icon,
+.fi-sidebar-item-icon {
+    color: var(--rd-muted);
+    transition: color 180ms var(--rd-ease), transform 180ms var(--rd-ease);
+}
+
+.fi-sidebar-item-btn::before {
+    background-color: var(--rd-ink);
+    border-radius: 999px;
+    content: '';
+    height: 1rem;
+    inset-inline-start: -0.3rem;
+    opacity: 0;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%) scaleY(0);
+    transition: opacity 200ms var(--rd-ease), transform 220ms var(--rd-ease);
+    width: 2px;
+}
+
+.fi-sidebar-item-btn:hover::before {
+    opacity: 0.45;
+    transform: translateY(-50%) scaleY(1);
 }
 
 .fi-sidebar-item.fi-sidebar-item-has-url > .fi-sidebar-item-btn:hover {
-    background-color: rgb(255 255 255 / 0.06);
+    background-color: var(--rd-canvas);
+    color: var(--rd-ink);
+    transform: translateX(1px);
+}
+
+.fi-sidebar-item.fi-sidebar-item-has-url > .fi-sidebar-item-btn:hover > .fi-icon {
+    color: var(--rd-ink);
+    transform: translateY(-1px);
 }
 
 .fi-sidebar-item.fi-active > .fi-sidebar-item-btn {
-    background-color: rgb(45 212 191 / 0.14);
+    background-color: var(--rd-canvas);
+    color: var(--rd-ink);
+    box-shadow: inset 0 0 0 1px var(--rd-line);
 }
 
 .fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-icon,
 .fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-sidebar-item-label {
-    color: var(--rukun-teal-light);
+    color: var(--rd-ink);
 }
 
 .fi-sidebar-footer {
-    border-color: rgb(255 255 255 / 0.12);
+    border-top: 1px solid var(--rd-line);
+    padding: 0.75rem;
 }
 
-/* DESIGN.md §8: sudut 8px untuk kartu, isian, dan panel; 6px untuk tombol. */
-.fi-section,
-.fi-ta,
-.fi-input-wrp,
-.fi-simple-main {
-    border-radius: 8px;
+.fi-user-menu-trigger {
+    background-color: var(--rd-surface-muted);
+    border: 1px solid var(--rd-line);
+    border-radius: 12px;
+    gap: 0.6rem;
+    padding: 0.55rem 0.65rem;
+    transition: background-color 180ms var(--rd-ease), border-color 180ms var(--rd-ease), transform 180ms var(--rd-ease);
+    width: 100%;
 }
+
+.fi-user-menu-trigger:hover {
+    background-color: var(--rd-canvas);
+    border-color: var(--rd-line-strong);
+    transform: translateY(-1px);
+}
+
+.fi-user-menu-trigger-text {
+    color: var(--rd-ink);
+    font-size: 0.8rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+}
+
+.fi-sidebar-close-collapse-sidebar-btn,
+.fi-sidebar-open-collapse-sidebar-btn {
+    color: var(--rd-muted);
+    border: 1px solid var(--rd-line);
+    border-radius: 9px;
+}
+
+/* -------------------------------------------------------------- Header */
+
+.fi-header {
+    align-items: flex-end;
+    gap: 1rem;
+    padding-block: 0.25rem;
+}
+
+.fi-header-heading {
+    color: var(--rd-ink);
+    font-size: clamp(1.35rem, 1.2rem + 0.4vw, 1.6rem);
+    font-weight: 730;
+    letter-spacing: -0.035em;
+    line-height: 1.15;
+}
+
+.fi-header-subheading {
+    color: var(--rd-muted);
+    font-size: 0.845rem;
+    line-height: 1.5;
+}
+
+.fi-header-actions-ctn {
+    gap: 0.5rem;
+}
+
+.fi-breadcrumbs {
+    color: var(--rd-muted);
+}
+
+/* --------------------------------------------------------------- Cards */
+
+.fi-section,
+.fi-ta-ctn,
+.fi-wi-chart .fi-section,
+.fi-wi-stats-overview-stat {
+    background-color: var(--rd-surface);
+    border: 0;
+    border-radius: var(--rd-radius-xl);
+    box-shadow: 0 0 0 1px var(--rd-line), var(--rd-shadow-card);
+}
+
+.fi-section {
+    border-top: 0 !important;
+    overflow: hidden;
+}
+
+.fi-section-header {
+    border-bottom: 1px solid var(--rd-line);
+    padding: 1rem 1.25rem;
+}
+
+.fi-section-header-heading {
+    color: var(--rd-ink);
+    font-size: 0.92rem;
+    font-weight: 680;
+    letter-spacing: -0.02em;
+}
+
+.fi-section-header-description {
+    color: var(--rd-muted);
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
+.fi-section-content {
+    padding: 1.15rem 1.25rem;
+}
+
+.fi-section:not(.fi-section-has-header) > .fi-section-content {
+    padding: 1.15rem 1.25rem;
+}
+
+.rd-table-section .fi-section-content {
+    padding: 0;
+}
+
+.rd-table-section .fi-ta-ctn {
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* --------------------------------------------------------------- Table */
+
+.fi-ta-ctn {
+    overflow: hidden;
+}
+
+.fi-ta-header {
+    border-bottom: 1px solid var(--rd-line);
+    padding: 0.95rem 1.15rem;
+}
+
+.fi-ta-header-heading {
+    color: var(--rd-ink);
+    font-size: 0.92rem;
+    font-weight: 680;
+    letter-spacing: -0.02em;
+}
+
+.fi-ta-header-toolbar {
+    background-color: var(--rd-surface);
+    border-bottom: 1px solid var(--rd-line);
+    padding: 0.7rem 1rem;
+}
+
+.fi-ta-table > thead > tr {
+    background-color: var(--rd-surface-muted);
+}
+
+.fi-ta-table > thead {
+    border-bottom: 0;
+}
+
+.fi-ta-header-cell {
+    color: var(--rd-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    padding: 0.72rem 1rem;
+    text-transform: capitalize;
+}
+
+.fi-ta-table > tbody {
+    border-color: var(--rd-line);
+}
+
+.fi-ta-row {
+    background-color: var(--rd-surface) !important;
+    transition: background-color 160ms var(--rd-ease);
+}
+
+.fi-ta-row.fi-striped {
+    background-color: var(--rd-surface) !important;
+}
+
+.fi-ta-row:hover {
+    background-color: var(--rd-surface-muted) !important;
+}
+
+.fi-ta-cell {
+    padding: 0.82rem 1rem;
+}
+
+.fi-ta-cell .fi-ta-col,
+.fi-ta-cell-content,
+.fi-ta-text-item {
+    color: var(--rd-ink-soft);
+    font-size: 0.825rem;
+}
+
+.fi-ta-text-description {
+    color: var(--rd-muted);
+    font-size: 0.72rem;
+}
+
+.fi-ta-actions {
+    gap: 0.15rem;
+}
+
+.fi-ta-content-ctn {
+    border-radius: 0;
+}
+
+.fi-ta-empty-state {
+    padding-block: 3rem;
+}
+
+.fi-ta-empty-state-heading {
+    color: var(--rd-ink);
+    font-weight: 680;
+    letter-spacing: -0.02em;
+}
+
+.fi-ta-empty-state-description {
+    color: var(--rd-muted);
+}
+
+/* ----------------------------------------------------------- Pagination */
+
+.fi-pagination {
+    border-color: var(--rd-line);
+    padding: 0.75rem 1rem;
+}
+
+.fi-pagination-item-btn {
+    border-radius: 9px !important;
+    transition: background-color 160ms var(--rd-ease), color 160ms var(--rd-ease);
+}
+
+.fi-pagination-item.fi-active .fi-pagination-item-btn {
+    background-color: var(--rd-ink);
+}
+
+.fi-pagination-item.fi-active .fi-pagination-item-label {
+    color: #ffffff;
+}
+
+.fi-pagination-items {
+    border-radius: 10px !important;
+    box-shadow: 0 0 0 1px var(--rd-line);
+}
+
+/* -------------------------------------------------------------- Inputs */
+
+.fi-input-wrp {
+    background-color: var(--rd-surface);
+    border-radius: var(--rd-radius-md);
+    box-shadow: 0 0 0 1px var(--rd-line-strong);
+    transition: box-shadow 180ms var(--rd-ease), background-color 180ms var(--rd-ease);
+}
+
+.fi-input-wrp:focus-within {
+    box-shadow: 0 0 0 2px var(--rd-ink), 0 8px 24px -18px rgb(11 15 20 / 0.4);
+}
+
+.fi-input,
+.fi-select-input {
+    font-size: 0.84rem;
+}
+
+.fi-fo-field-wrp-label,
+.fi-fo-field-wrp-label span {
+    color: var(--rd-ink-soft);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.fi-fo-field-wrp-helper-text {
+    color: var(--rd-muted);
+    font-size: 0.72rem;
+}
+
+.fi-ta-search-field .fi-input-wrp {
+    min-width: 15rem;
+}
+
+/* ------------------------------------------------------------- Buttons */
 
 .fi-btn {
-    border-radius: 6px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 650;
+    gap: 0.45rem;
+    letter-spacing: -0.005em;
+    padding: 0.54rem 0.9rem;
+    transition:
+        background-color 180ms var(--rd-ease),
+        border-color 180ms var(--rd-ease),
+        color 180ms var(--rd-ease),
+        box-shadow 180ms var(--rd-ease),
+        transform 180ms var(--rd-ease);
 }
 
-/* DESIGN.md §8: tombol utama berlatar teal dengan teks putih. Filament memilih
-   gaya tonal (latar terang) untuk rona terang seperti teal, jadi warnanya
-   dipatok eksplisit. Tombol sekunder (outlined) tidak terpengaruh. */
+.fi-btn:hover {
+    transform: translateY(-1px);
+}
+
+.fi-btn:active {
+    transform: translateY(0) scale(0.985);
+}
+
 .fi-btn.fi-color-primary:not(.fi-outlined) {
-    background-color: var(--rukun-teal);
+    background-color: var(--rd-ink);
+    box-shadow: 0 10px 20px -14px rgb(11 15 20 / 0.75);
     color: #ffffff;
 }
 
 .fi-btn.fi-color-primary:not(.fi-outlined):hover {
-    background-color: #115e59;
+    background-color: #1f2937;
     color: #ffffff;
 }
 
@@ -93,14 +502,528 @@
     color: #ffffff;
 }
 
-/* DESIGN.md §10.1: fokus keyboard selalu terlihat, garis teal 2px. */
-:focus-visible {
-    outline: 2px solid var(--rukun-teal-light);
-    outline-offset: 2px;
+.fi-btn.fi-outlined,
+.fi-btn.fi-color-gray:not(.fi-outlined) {
+    background-color: var(--rd-surface);
+    box-shadow: inset 0 0 0 1px var(--rd-line-strong);
+    color: var(--rd-ink);
 }
 
-/* DESIGN.md §5: angka NIK dan No KK memakai angka tabular agar digit sejajar. */
-.fi-ta-cell,
-.fi-in-entry-content {
+.fi-btn.fi-outlined:hover,
+.fi-btn.fi-color-gray:not(.fi-outlined):hover {
+    background-color: var(--rd-surface-muted);
+    box-shadow: inset 0 0 0 1px var(--rd-line-strong);
+}
+
+.fi-icon-btn {
+    border-radius: 9px;
+    transition: background-color 160ms var(--rd-ease), color 160ms var(--rd-ease), transform 160ms var(--rd-ease);
+}
+
+.fi-icon-btn:hover {
+    background-color: var(--rd-canvas);
+    color: var(--rd-ink);
+    transform: translateY(-1px);
+}
+
+/* -------------------------------------------------------------- Badges */
+
+.fi-badge {
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-size: 0.69rem;
+    font-weight: 650;
+    letter-spacing: 0.005em;
+    padding: 0.16rem 0.55rem;
+}
+
+.fi-badge.fi-color-success {
+    background-color: var(--rd-success-soft);
+    border-color: #abefc6;
+    color: var(--rd-success);
+}
+
+.fi-badge.fi-color-danger {
+    background-color: var(--rd-danger-soft);
+    border-color: #fecdca;
+    color: var(--rd-danger);
+}
+
+.fi-badge.fi-color-warning {
+    background-color: var(--rd-warning-soft);
+    border-color: #fedf89;
+    color: var(--rd-warning);
+}
+
+.fi-badge.fi-color-info {
+    background-color: var(--rd-accent-soft);
+    border-color: #c7cbe6;
+    color: var(--rd-accent);
+}
+
+.fi-badge.fi-color-gray {
+    background-color: var(--rd-surface-muted);
+    border-color: var(--rd-line);
+    color: var(--rd-muted);
+}
+
+/* ---------------------------------------------------------------- Tabs */
+
+.fi-tabs {
+    background-color: var(--rd-canvas);
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 1px var(--rd-line);
+    gap: 0.15rem;
+    margin-inline: 0;
+    padding: 0.22rem;
+}
+
+.fi-tabs.fi-contained {
+    background-color: transparent;
+    border-bottom: 1px solid var(--rd-line);
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0 0 0.4rem;
+}
+
+.fi-tabs:not(.fi-contained) {
+    width: fit-content;
+}
+
+.fi-tabs-item {
+    border-radius: 999px;
+    color: var(--rd-muted);
+    transition:
+        background-color 220ms var(--rd-ease),
+        color 220ms var(--rd-ease),
+        box-shadow 220ms var(--rd-ease),
+        transform 220ms var(--rd-ease);
+}
+
+.fi-tabs-item:hover {
+    background-color: rgb(255 255 255 / 0.6);
+    color: var(--rd-ink-soft);
+}
+
+.fi-tabs-item.fi-active {
+    background-color: var(--rd-surface);
+    box-shadow: 0 1px 2px rgb(16 24 40 / 0.08), 0 8px 18px -14px rgb(16 24 40 / 0.32);
+    color: var(--rd-ink);
+}
+
+.fi-tabs-item.fi-active .fi-tabs-item-label,
+.fi-tabs-item.fi-active > .fi-icon {
+    color: var(--rd-ink);
+}
+
+.fi-tabs-item .fi-tabs-item-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+/* ---------------------------------------------------------- Simple auth */
+
+.fi-simple-layout {
+    background-color: var(--rd-canvas);
+    background-image:
+        radial-gradient(80% 50% at 50% -10%, #ffffff 0%, rgb(255 255 255 / 0) 70%),
+        radial-gradient(40% 40% at 100% 100%, #eef0fa 0%, rgb(238 240 250 / 0) 70%);
+}
+
+.fi-simple-main {
+    background-color: var(--rd-surface);
+    border-radius: 20px;
+    box-shadow: 0 0 0 1px var(--rd-line), 0 32px 80px -40px rgb(16 24 40 / 0.4);
+    padding: 2rem;
+}
+
+.fi-simple-header-heading {
+    color: var(--rd-ink);
+    font-weight: 730;
+    letter-spacing: -0.035em;
+}
+
+.fi-simple-header-subheading {
+    color: var(--rd-muted);
+}
+
+/* ------------------------------------------------------- Custom widgets */
+
+.rd-panel {
+    background-color: var(--rd-surface);
+    border-radius: var(--rd-radius-xl);
+    box-shadow: 0 0 0 1px var(--rd-line), var(--rd-shadow-card);
+    padding: 1.15rem 1.25rem;
+}
+
+.rd-panel-icon {
+    align-items: center;
+    background-color: var(--rd-surface-muted);
+    border-radius: 10px;
+    box-shadow: inset 0 0 0 1px var(--rd-line);
+    color: var(--rd-ink);
+    display: inline-flex;
+    height: 2rem;
+    justify-content: center;
+    width: 2rem;
+}
+
+.rd-quiet-link {
+    align-items: center;
+    background-color: var(--rd-surface);
+    border-radius: 9px;
+    box-shadow: inset 0 0 0 1px var(--rd-line);
+    color: var(--rd-ink-soft);
+    display: inline-flex;
+    font-size: 0.72rem;
+    font-weight: 600;
+    gap: 0.35rem;
+    padding: 0.4rem 0.6rem;
+    transition: background-color 180ms var(--rd-ease), box-shadow 180ms var(--rd-ease), transform 180ms var(--rd-ease);
+}
+
+.rd-quiet-link:hover {
+    background-color: var(--rd-surface-muted);
+    box-shadow: inset 0 0 0 1px var(--rd-line-strong);
+    transform: translateY(-1px);
+}
+
+.rd-chip {
+    align-items: center;
+    background-color: var(--rd-surface);
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 1px var(--rd-line);
+    color: var(--rd-muted);
+    display: inline-flex;
+    font-size: 0.74rem;
+    font-weight: 600;
+    gap: 0.3rem;
+    padding: 0.35rem 0.7rem;
+    transition:
+        background-color 180ms var(--rd-ease),
+        box-shadow 180ms var(--rd-ease),
+        color 180ms var(--rd-ease),
+        transform 180ms var(--rd-ease);
+}
+
+.rd-chip:hover {
+    background-color: var(--rd-surface-muted);
+    color: var(--rd-ink);
+    transform: translateY(-1px);
+}
+
+.rd-chip.rd-chip-active {
+    background-color: var(--rd-ink);
+    box-shadow: none;
+    color: #ffffff;
+}
+
+.rd-mini-stat {
+    background-color: var(--rd-surface-muted);
+    border-radius: 12px;
+    box-shadow: inset 0 0 0 1px var(--rd-line);
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.8rem 0.95rem;
+}
+
+.rd-mini-stat-label {
+    color: var(--rd-muted);
+    font-size: 0.68rem;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.rd-mini-stat-value {
+    color: var(--rd-ink);
+    font-size: 1.35rem;
     font-variant-numeric: tabular-nums;
+    font-weight: 720;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+}
+
+.rd-mini-stat-hint {
+    color: var(--rd-muted);
+    font-size: 0.68rem;
+}
+
+.rd-search-input {
+    background-color: var(--rd-surface);
+    border-radius: 11px;
+    box-shadow: 0 0 0 1px var(--rd-line-strong);
+    color: var(--rd-ink);
+    font-size: 0.82rem;
+    padding: 0.55rem 0.8rem 0.55rem 2.25rem;
+    transition: box-shadow 180ms var(--rd-ease);
+    width: 100%;
+}
+
+.rd-filter-label {
+    color: var(--rd-muted);
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.rd-select {
+    background-color: var(--rd-surface);
+    border-radius: 11px;
+    box-shadow: 0 0 0 1px var(--rd-line-strong);
+    color: var(--rd-ink);
+    font-size: 0.82rem;
+    padding: 0.55rem 2rem 0.55rem 0.8rem;
+    transition: box-shadow 180ms var(--rd-ease);
+    width: 100%;
+}
+
+.rd-select:focus {
+    box-shadow: 0 0 0 2px var(--rd-ink);
+    outline: none;
+}
+
+.rd-filter-reset {
+    align-items: center;
+    background-color: var(--rd-surface);
+    border-radius: 11px;
+    box-shadow: inset 0 0 0 1px var(--rd-line-strong);
+    color: var(--rd-ink-soft);
+    display: inline-flex;
+    font-size: 0.78rem;
+    font-weight: 650;
+    gap: 0.35rem;
+    height: 2.35rem;
+    justify-content: center;
+    padding-inline: 0.8rem;
+    transition: background-color 180ms var(--rd-ease), box-shadow 180ms var(--rd-ease);
+}
+
+.rd-filter-reset:hover:not(:disabled) {
+    background-color: var(--rd-surface-muted);
+    box-shadow: inset 0 0 0 1px var(--rd-line-strong);
+}
+
+.rd-filter-reset:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+
+.rd-search-input::placeholder {
+    color: var(--rd-muted);
+}
+
+.rd-search-input:focus {
+    box-shadow: 0 0 0 2px var(--rd-ink);
+    outline: none;
+}
+
+.rd-list-btn {
+    align-items: center;
+    background-color: var(--rd-surface);
+    border-radius: 12px;
+    box-shadow: inset 0 0 0 1px var(--rd-line);
+    display: flex;
+    gap: 0.65rem;
+    padding: 0.65rem 0.75rem;
+    text-align: left;
+    transition:
+        background-color 180ms var(--rd-ease),
+        box-shadow 180ms var(--rd-ease),
+        transform 180ms var(--rd-ease);
+}
+
+.rd-list-btn:hover {
+    background-color: var(--rd-surface-muted);
+    box-shadow: inset 0 0 0 1px var(--rd-line-strong);
+    transform: translateY(-1px);
+}
+
+.rd-list-icon {
+    align-items: center;
+    background-color: var(--rd-canvas);
+    border-radius: 8px;
+    color: var(--rd-ink-soft);
+    display: inline-flex;
+    height: 1.85rem;
+    justify-content: center;
+    width: 1.85rem;
+}
+
+.rd-checkbox {
+    accent-color: var(--rd-ink);
+    border-radius: 4px;
+    height: 0.95rem;
+    width: 0.95rem;
+}
+
+.rd-chip:focus-visible,
+.rd-quiet-link:focus-visible,
+.rd-list-btn:focus-visible,
+.rd-select:focus-visible,
+.rd-filter-reset:focus-visible,
+.fi-tabs-item:focus-visible,
+.rd-checkbox:focus-visible {
+    outline: none;
+    box-shadow:
+        0 0 0 2px var(--rd-surface),
+        0 0 0 4px var(--rd-accent);
+}
+
+.rd-list-btn:focus-visible,
+.rd-quiet-link:focus-visible {
+    box-shadow:
+        inset 0 0 0 1px var(--rd-line),
+        0 0 0 2px var(--rd-surface),
+        0 0 0 4px var(--rd-accent);
+}
+
+.rd-stat-grid {
+    display: grid;
+    gap: 0.85rem;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 640px) {
+    .rd-stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1280px) {
+    .rd-stat-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+.rd-stat-card {
+    background-color: var(--rd-surface);
+    border-radius: var(--rd-radius-xl);
+    box-shadow: 0 0 0 1px var(--rd-line), var(--rd-shadow-card);
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+    min-height: 9.25rem;
+    padding: 1rem 1.05rem;
+    position: relative;
+    transition:
+        box-shadow 220ms var(--rd-ease),
+        transform 220ms var(--rd-ease);
+}
+
+.rd-stat-card:hover {
+    box-shadow: 0 0 0 1px var(--rd-line-strong), 0 24px 48px -30px rgb(16 24 40 / 0.36);
+    transform: translateY(-2px);
+}
+
+.rd-stat-icon {
+    align-items: center;
+    background-color: var(--rd-surface-muted);
+    border-radius: 11px;
+    box-shadow: inset 0 0 0 1px var(--rd-line);
+    color: var(--rd-ink);
+    display: inline-flex;
+    height: 2.15rem;
+    justify-content: center;
+    width: 2.15rem;
+}
+
+.rd-stat-icon .fi-icon {
+    height: 1.05rem;
+    width: 1.05rem;
+}
+
+.rd-stat-value {
+    color: var(--rd-ink);
+    font-size: clamp(1.45rem, 1.2rem + 0.6vw, 1.75rem);
+    font-variant-numeric: tabular-nums;
+    font-weight: 720;
+    letter-spacing: -0.045em;
+    line-height: 1;
+}
+
+.rd-stat-label {
+    color: var(--rd-ink-soft);
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-top: 0.4rem;
+}
+
+.rd-stat-desc {
+    color: var(--rd-muted);
+    font-size: 0.7rem;
+    line-height: 1.45;
+    margin-top: 0.15rem;
+}
+
+.rd-stat-delta {
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: 0.65rem;
+    font-weight: 700;
+    margin-inline-start: 0.35rem;
+    padding: 0.1rem 0.4rem;
+    vertical-align: 0.2rem;
+}
+
+.rd-stat-delta.is-up {
+    background-color: var(--rd-success-soft);
+    color: var(--rd-success);
+}
+
+.rd-stat-delta.is-down {
+    background-color: var(--rd-danger-soft);
+    color: var(--rd-danger);
+}
+
+/* ------------------------------------------------------------- Motion */
+
+@keyframes rd-fade-up {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes rd-pulse-soft {
+    0%,
+    100% {
+        opacity: 0.55;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+.fi-ta-loading .fi-ta-table tbody,
+.fi-wi-chart .fi-loading-indicator {
+    animation: rd-pulse-soft 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .fi-btn:hover,
+    .fi-sidebar-item-btn:hover,
+    .rd-stat-card:hover,
+    .fi-user-menu-trigger:hover {
+        transform: none;
+    }
 }

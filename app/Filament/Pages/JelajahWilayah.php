@@ -70,6 +70,15 @@ class JelajahWilayah extends Page implements HasTable
     // Kata kunci pencarian lintas tingkat (semua wilayah di bawah titik awal).
     public string $cariGlobal = '';
 
+    public string $statusFilter = '';
+
+    public mixed $filterProvinsi = null;
+    public mixed $filterKabkota = null;
+    public mixed $filterKecamatan = null;
+    public mixed $filterDesa = null;
+    public mixed $filterRw = null;
+    public mixed $filterRt = null;
+
     protected ?Wilayah $titikAwalCache = null;
 
     /** @var array<int, Collection<int, Wilayah>> */
@@ -107,6 +116,7 @@ class JelajahWilayah extends Page implements HasTable
             abort_unless($this->diDalamSubtree($wilayah, $start), 404);
 
             $this->pilihan = $this->pilihanDariNode($wilayah, $start);
+            $this->sinkronkanCascadingDariNode($wilayah);
         }
     }
 
@@ -225,6 +235,7 @@ class JelajahWilayah extends Page implements HasTable
         $this->pangkas($indeksAktif + 1);
         $this->cari = '';
         $this->cariGlobal = '';
+        $this->sinkronkanCascadingDariNode($opsi);
         $this->resetTable();
     }
 
@@ -234,6 +245,7 @@ class JelajahWilayah extends Page implements HasTable
         $this->pangkas($posisi);
         $this->cari = '';
         $this->cariGlobal = '';
+        $this->sinkronkanCascadingDariNode($this->nodeAktif());
         $this->resetTable();
     }
 
@@ -254,7 +266,77 @@ class JelajahWilayah extends Page implements HasTable
         $this->cacheTanggaKunci = null;
         $this->cari = '';
         $this->cariGlobal = '';
+        $this->sinkronkanCascadingDariNode($node);
         $this->resetTable();
+    }
+
+    public function cariWilayahIds(string $level, mixed $input): array
+    {
+        if (blank($input)) {
+            return [];
+        }
+
+        if (is_numeric($input)) {
+            $found = Wilayah::where('id', (int) $input)->where(function ($q) use ($level) {
+                if ($level === 'desa') {
+                    $q->whereIn('level', ['desa', 'dusun']);
+                } else {
+                    $q->where('level', $level);
+                }
+            })->first();
+            if ($found) {
+                return [$found->id];
+            }
+        }
+
+        $term = trim((string) $input);
+
+        if (in_array($level, ['rw', 'rt'], true)) {
+            $digits = preg_replace('/\D/', '', $term);
+
+            return Wilayah::where('level', $level)
+                ->where(function (Builder $q) use ($term, $digits, $level) {
+                    $q->where('nama', 'like', '%'.$term.'%');
+                    if ($digits !== '') {
+                        $prefix = strtoupper($level);
+                        $clean = ltrim($digits, '0');
+                        $q->orWhere('nama', 'like', '%'.$prefix.'%'.$digits.'%')
+                            ->orWhere('nama', 'like', '%'.$prefix.' '.$digits.'%')
+                            ->orWhere('nama', 'like', '%'.$digits.'%');
+                        if ($clean !== '') {
+                            $q->orWhere('nama', 'like', '%'.$prefix.' '.$clean.'%')
+                                ->orWhere('nama', 'like', '%'.$prefix.'%'.$clean.'%');
+                        }
+                    }
+                })
+                ->limit(50)
+                ->pluck('id')
+                ->all();
+        }
+
+        if ($level === 'desa') {
+            return Wilayah::whereIn('level', ['desa', 'dusun'])
+                ->where('nama', 'like', '%'.$term.'%')
+                ->limit(50)
+                ->pluck('id')
+                ->all();
+        }
+
+        return Wilayah::where('level', $level)
+            ->where('nama', 'like', '%'.$term.'%')
+            ->limit(50)
+            ->pluck('id')
+            ->all();
+    }
+
+    public function hasGranularFilter(): bool
+    {
+        return filled($this->filterProvinsi)
+            || filled($this->filterKabkota)
+            || filled($this->filterKecamatan)
+            || filled($this->filterDesa)
+            || filled($this->filterRw)
+            || filled($this->filterRt);
     }
 
     /**
@@ -267,21 +349,105 @@ class JelajahWilayah extends Page implements HasTable
     {
         $kata = trim($this->cariGlobal);
 
-        if (mb_strlen($kata) < 2) {
+        if (mb_strlen($kata) < 2 && ! $this->hasGranularFilter()) {
             return [];
         }
 
         $start = $this->titikAwal(auth()->user());
 
-        $hasil = Wilayah::query()
+        $query = Wilayah::query()
             ->where('path', 'like', $start->path.'%')
-            ->whereKeyNot($start->getKey())
-            ->where(fn (Builder $q): Builder => $q
+            ->whereKeyNot($start->getKey());
+
+        if (mb_strlen($kata) >= 2) {
+            $query->where(fn (Builder $q): Builder => $q
                 ->where('nama', 'like', '%'.$kata.'%')
-                ->orWhere('kode', 'like', '%'.$kata.'%'))
-            ->orderByRaw('CHAR_LENGTH(path)')
+                ->orWhere('kode', 'like', '%'.$kata.'%'));
+        }
+
+        if ($this->statusFilter === 'aktif') {
+            $query->where('is_active', true);
+        } elseif ($this->statusFilter === 'nonaktif') {
+            $query->where('is_active', false);
+        }
+
+        if ($this->hasGranularFilter()) {
+            if (filled($this->filterRt)) {
+                $rtIds = $this->cariWilayahIds('rt', $this->filterRt);
+                $query->whereIn('id', $rtIds);
+            } elseif (filled($this->filterRw)) {
+                $rwIds = $this->cariWilayahIds('rw', $this->filterRw);
+                $query->whereIn('id', $rwIds);
+            } elseif (filled($this->filterDesa)) {
+                $desaIds = $this->cariWilayahIds('desa', $this->filterDesa);
+                $query->whereIn('id', $desaIds);
+            } elseif (filled($this->filterKecamatan)) {
+                $kecIds = $this->cariWilayahIds('kecamatan', $this->filterKecamatan);
+                $query->whereIn('id', $kecIds);
+            } elseif (filled($this->filterKabkota)) {
+                $kabIds = $this->cariWilayahIds('kabupaten_kota', $this->filterKabkota);
+                $query->whereIn('id', $kabIds);
+            } elseif (filled($this->filterProvinsi)) {
+                $provIds = $this->cariWilayahIds('provinsi', $this->filterProvinsi);
+                $query->whereIn('id', $provIds);
+            }
+
+            if (filled($this->filterProvinsi) && (filled($this->filterKabkota) || filled($this->filterKecamatan) || filled($this->filterDesa) || filled($this->filterRw) || filled($this->filterRt))) {
+                $provIds = $this->cariWilayahIds('provinsi', $this->filterProvinsi);
+                if ($provIds) {
+                    $query->where(function (Builder $sub) use ($provIds) {
+                        foreach ($provIds as $id) {
+                            $sub->orWhere('path', 'like', '%/'.$id.'/%');
+                        }
+                    });
+                }
+            }
+            if (filled($this->filterKabkota) && (filled($this->filterKecamatan) || filled($this->filterDesa) || filled($this->filterRw) || filled($this->filterRt))) {
+                $kabIds = $this->cariWilayahIds('kabupaten_kota', $this->filterKabkota);
+                if ($kabIds) {
+                    $query->where(function (Builder $sub) use ($kabIds) {
+                        foreach ($kabIds as $id) {
+                            $sub->orWhere('path', 'like', '%/'.$id.'/%');
+                        }
+                    });
+                }
+            }
+            if (filled($this->filterKecamatan) && (filled($this->filterDesa) || filled($this->filterRw) || filled($this->filterRt))) {
+                $kecIds = $this->cariWilayahIds('kecamatan', $this->filterKecamatan);
+                if ($kecIds) {
+                    $query->where(function (Builder $sub) use ($kecIds) {
+                        foreach ($kecIds as $id) {
+                            $sub->orWhere('path', 'like', '%/'.$id.'/%');
+                        }
+                    });
+                }
+            }
+            if (filled($this->filterDesa) && (filled($this->filterRw) || filled($this->filterRt))) {
+                $desaIds = $this->cariWilayahIds('desa', $this->filterDesa);
+                if ($desaIds) {
+                    $query->where(function (Builder $sub) use ($desaIds) {
+                        foreach ($desaIds as $id) {
+                            $sub->orWhere('path', 'like', '%/'.$id.'/%');
+                        }
+                    });
+                }
+            }
+            if (filled($this->filterRw) && filled($this->filterRt)) {
+                $rwIds = $this->cariWilayahIds('rw', $this->filterRw);
+                if ($rwIds) {
+                    $query->where(function (Builder $sub) use ($rwIds) {
+                        foreach ($rwIds as $id) {
+                            $sub->orWhere('path', 'like', '%/'.$id.'/%');
+                        }
+                    });
+                }
+            }
+        }
+
+        $hasil = $query
+            ->orderByRaw('LENGTH(path)')
             ->orderBy('nama')
-            ->limit(30)
+            ->limit(50)
             ->get();
 
         $detail = WilayahLabels::details($hasil);
@@ -335,9 +501,18 @@ class JelajahWilayah extends Page implements HasTable
         }
 
         $kata = mb_strtolower(trim($this->cari));
+        $anak = $this->anakDari($langkah['induk']);
 
-        return $this->anakDari($langkah['induk'])
-            ->when($kata !== '', fn (Collection $anak): Collection => $anak->filter(
+        if ($this->statusFilter === 'aktif') {
+            $anak = $anak->filter(fn (Wilayah $w): bool => (bool) $w->aktifEfektif());
+        } elseif ($this->statusFilter === 'nonaktif') {
+            $anak = $anak->filter(fn (Wilayah $w): bool => ! (bool) $w->is_active);
+        } elseif ($this->statusFilter === 'down') {
+            $anak = $anak->filter(fn (Wilayah $w): bool => (bool) $w->is_active && ! (bool) $w->aktifEfektif());
+        }
+
+        return $anak
+            ->when($kata !== '', fn (Collection $list): Collection => $list->filter(
                 fn (Wilayah $w): bool => str_contains(mb_strtolower($w->nama.' '.$w->kode), $kata),
             ))
             ->values();
@@ -626,5 +801,391 @@ class JelajahWilayah extends Page implements HasTable
     protected function diDalamSubtree(?Wilayah $node, Wilayah $start): bool
     {
         return $node !== null && str_starts_with((string) $node->path, (string) $start->path);
+    }
+
+    public function updatedStatusFilter(): void
+    {
+        $this->cacheHitungan = null;
+        $this->cacheHitunganKunci = null;
+    }
+
+    public function updatedFilterProvinsi(mixed $value = null): void
+    {
+        if (is_numeric($value) && (int) $value > 0 && Wilayah::where('id', (int) $value)->where('level', 'provinsi')->exists()) {
+            $this->lompatKe((int) $value);
+        }
+        $this->cacheHitungan = null;
+        $this->cacheHitunganKunci = null;
+        $this->resetTable();
+    }
+
+    public function updatedFilterKabkota(mixed $value = null): void
+    {
+        if (is_numeric($value) && (int) $value > 0 && Wilayah::where('id', (int) $value)->where('level', 'kabupaten_kota')->exists()) {
+            $this->lompatKe((int) $value);
+        }
+        $this->cacheHitungan = null;
+        $this->cacheHitunganKunci = null;
+        $this->resetTable();
+    }
+
+    public function updatedFilterKecamatan(mixed $value = null): void
+    {
+        if (is_numeric($value) && (int) $value > 0 && Wilayah::where('id', (int) $value)->where('level', 'kecamatan')->exists()) {
+            $this->lompatKe((int) $value);
+        }
+        $this->cacheHitungan = null;
+        $this->cacheHitunganKunci = null;
+        $this->resetTable();
+    }
+
+    public function updatedFilterDesa(mixed $value = null): void
+    {
+        if (is_numeric($value) && (int) $value > 0 && Wilayah::where('id', (int) $value)->where('level', 'desa')->exists()) {
+            $this->lompatKe((int) $value);
+        }
+        $this->cacheHitungan = null;
+        $this->cacheHitunganKunci = null;
+        $this->resetTable();
+    }
+
+    public function updatedFilterRw(mixed $value = null): void
+    {
+        if (is_numeric($value) && (int) $value > 0 && Wilayah::where('id', (int) $value)->where('level', 'rw')->exists()) {
+            $this->lompatKe((int) $value);
+        }
+        $this->cacheHitungan = null;
+        $this->cacheHitunganKunci = null;
+        $this->resetTable();
+    }
+
+    public function updatedFilterRt(mixed $value = null): void
+    {
+        if (is_numeric($value) && (int) $value > 0 && Wilayah::where('id', (int) $value)->where('level', 'rt')->exists()) {
+            $this->lompatKe((int) $value);
+        }
+        $this->cacheHitungan = null;
+        $this->cacheHitunganKunci = null;
+        $this->resetTable();
+    }
+
+    public function getDaftarProvinsiProperty(): array
+    {
+        $q = Wilayah::where('level', 'provinsi');
+        if ($this->statusFilter === 'aktif') {
+            $q->where('is_active', true);
+        } elseif ($this->statusFilter === 'nonaktif') {
+            $q->where('is_active', false);
+        }
+
+        return $q->orderBy('nama')->pluck('nama')->all();
+    }
+
+    public function getDaftarKabkotaProperty(): array
+    {
+        $q = Wilayah::where('level', 'kabupaten_kota');
+        if ($this->statusFilter === 'aktif') {
+            $q->where('is_active', true);
+        } elseif ($this->statusFilter === 'nonaktif') {
+            $q->where('is_active', false);
+        }
+
+        if (filled($this->filterProvinsi)) {
+            $provIds = $this->cariWilayahIds('provinsi', $this->filterProvinsi);
+            if ($provIds) {
+                $q->where(function (Builder $sub) use ($provIds) {
+                    foreach ($provIds as $id) {
+                        $sub->orWhere('path', 'like', '%/'.$id.'/%');
+                    }
+                });
+            }
+        }
+
+        return $q->orderBy('nama')->limit(100)->pluck('nama')->all();
+    }
+
+    public function getDaftarKecamatanProperty(): array
+    {
+        $q = Wilayah::where('level', 'kecamatan');
+        if ($this->statusFilter === 'aktif') {
+            $q->where('is_active', true);
+        } elseif ($this->statusFilter === 'nonaktif') {
+            $q->where('is_active', false);
+        }
+
+        if (filled($this->filterKabkota)) {
+            $kabIds = $this->cariWilayahIds('kabupaten_kota', $this->filterKabkota);
+            if ($kabIds) {
+                $q->whereIn('parent_id', $kabIds);
+            }
+        }
+
+        return $q->orderBy('nama')->limit(50)->pluck('nama')->all();
+    }
+
+    public function getDaftarDesaProperty(): array
+    {
+        $q = Wilayah::whereIn('level', ['desa', 'dusun']);
+        if ($this->statusFilter === 'aktif') {
+            $q->where('is_active', true);
+        } elseif ($this->statusFilter === 'nonaktif') {
+            $q->where('is_active', false);
+        }
+
+        if (filled($this->filterKecamatan)) {
+            $kecIds = $this->cariWilayahIds('kecamatan', $this->filterKecamatan);
+            if ($kecIds) {
+                $q->where(function (Builder $sub) use ($kecIds) {
+                    $sub->whereIn('parent_id', $kecIds)
+                        ->orWhereHas('parent', fn ($p) => $p->whereIn('parent_id', $kecIds));
+                });
+            }
+        }
+
+        return $q->orderBy('nama')->limit(50)->pluck('nama')->all();
+    }
+
+    public function getDaftarRwProperty(): array
+    {
+        $user = auth()->user();
+        if ($user?->isAdminRw() && $user->wilayah) {
+            return [$user->wilayah->nama];
+        }
+
+        $options = [];
+        for ($i = 1; $i <= 30; $i++) {
+            $options[] = sprintf('RW %02d', $i);
+        }
+
+        return $options;
+    }
+
+    public function getDaftarRtProperty(): array
+    {
+        $user = auth()->user();
+        if ($user?->isAdminRw() && $user->wilayah) {
+            return $user->wilayah->children()->where('level', 'rt')->orderBy('nama')->pluck('nama')->all();
+        }
+        if ($user?->isAdminRt() && $user->wilayah) {
+            return [$user->wilayah->nama];
+        }
+
+        $options = [];
+        for ($i = 1; $i <= 30; $i++) {
+            $options[] = sprintf('RT %02d', $i);
+        }
+
+        return $options;
+    }
+
+    public function getOpsiProvinsiProperty(): array
+    {
+        return $this->daftarProvinsi;
+    }
+
+    public function getOpsiKabkotaProperty(): array
+    {
+        return $this->daftarKabkota;
+    }
+
+    public function getOpsiKecamatanProperty(): array
+    {
+        return $this->daftarKecamatan;
+    }
+
+    public function getOpsiDesaProperty(): array
+    {
+        return $this->daftarDesa;
+    }
+
+    public function getOpsiRwProperty(): array
+    {
+        return $this->daftarRw;
+    }
+
+    public function getOpsiRtProperty(): array
+    {
+        return $this->daftarRt;
+    }
+
+    public function getNamaFilterProvinsiProperty(): ?string
+    {
+        if (blank($this->filterProvinsi)) {
+            return null;
+        }
+
+        return is_numeric($this->filterProvinsi) ? Wilayah::find((int) $this->filterProvinsi)?->nama : (string) $this->filterProvinsi;
+    }
+
+    public function getNamaProvinsiTerpilihProperty(): ?string
+    {
+        return $this->namaFilterProvinsi;
+    }
+
+    public function getNamaKabkotaTerpilihProperty(): ?string
+    {
+        if (blank($this->filterKabkota)) {
+            return null;
+        }
+
+        return is_numeric($this->filterKabkota) ? Wilayah::find((int) $this->filterKabkota)?->nama : (string) $this->filterKabkota;
+    }
+
+    public function getNamaKecamatanTerpilihProperty(): ?string
+    {
+        if (blank($this->filterKecamatan)) {
+            return null;
+        }
+
+        return is_numeric($this->filterKecamatan) ? Wilayah::find((int) $this->filterKecamatan)?->nama : (string) $this->filterKecamatan;
+    }
+
+    public function getNamaDesaTerpilihProperty(): ?string
+    {
+        if (blank($this->filterDesa)) {
+            return null;
+        }
+
+        return is_numeric($this->filterDesa) ? Wilayah::find((int) $this->filterDesa)?->nama : (string) $this->filterDesa;
+    }
+
+    public function getNamaRwTerpilihProperty(): ?string
+    {
+        if (blank($this->filterRw)) {
+            return null;
+        }
+
+        return is_numeric($this->filterRw) ? Wilayah::find((int) $this->filterRw)?->nama : (string) $this->filterRw;
+    }
+
+    public function getNamaRtTerpilihProperty(): ?string
+    {
+        if (blank($this->filterRt)) {
+            return null;
+        }
+
+        return is_numeric($this->filterRt) ? Wilayah::find((int) $this->filterRt)?->nama : (string) $this->filterRt;
+    }
+
+    public function hapusFilterProvinsi(): void
+    {
+        $this->filterProvinsi = null;
+        $this->resetTable();
+    }
+
+    public function hapusFilterKabkota(): void
+    {
+        $this->filterKabkota = null;
+        $this->resetTable();
+    }
+
+    public function hapusFilterKecamatan(): void
+    {
+        $this->filterKecamatan = null;
+        $this->resetTable();
+    }
+
+    public function hapusFilterDesa(): void
+    {
+        $this->filterDesa = null;
+        $this->resetTable();
+    }
+
+    public function hapusFilterRw(): void
+    {
+        $this->filterRw = null;
+        $this->resetTable();
+    }
+
+    public function hapusFilterRt(): void
+    {
+        $this->filterRt = null;
+        $this->resetTable();
+    }
+
+    public function resetGranularFilters(): void
+    {
+        $this->filterProvinsi = null;
+        $this->filterKabkota = null;
+        $this->filterKecamatan = null;
+        $this->filterDesa = null;
+        $this->filterRw = null;
+        $this->filterRt = null;
+        $this->resetTable();
+    }
+
+    public function sinkronkanCascadingDariNode(?Wilayah $node): void
+    {
+        if (! $node || $node->level === 'negara') {
+            $this->filterProvinsi = null;
+            $this->filterKabkota = null;
+            $this->filterKecamatan = null;
+            $this->filterDesa = null;
+            $this->filterRw = null;
+            $this->filterRt = null;
+
+            return;
+        }
+
+        $chain = $node->ancestors()->push($node);
+        $this->filterProvinsi = $chain->firstWhere('level', 'provinsi')?->id;
+        $this->filterKabkota = $chain->firstWhere('level', 'kabupaten_kota')?->id;
+        $this->filterKecamatan = $chain->firstWhere('level', 'kecamatan')?->id;
+        $this->filterDesa = $chain->firstWhere('level', 'desa')?->id;
+        $this->filterRw = $chain->firstWhere('level', 'rw')?->id;
+        $this->filterRt = $chain->firstWhere('level', 'rt')?->id;
+    }
+
+    public function getJumlahFilterAktifProperty(): int
+    {
+        return ($this->statusFilter !== '' ? 1 : 0)
+            + (filled($this->filterProvinsi) ? 1 : 0)
+            + (filled($this->filterKabkota) ? 1 : 0)
+            + (filled($this->filterKecamatan) ? 1 : 0)
+            + (filled($this->filterDesa) ? 1 : 0)
+            + (filled($this->filterRw) ? 1 : 0)
+            + (filled($this->filterRt) ? 1 : 0)
+            + (! $this->hasGranularFilter() && $this->namaWilayahTerpilih ? 1 : 0);
+    }
+
+    public function hasActiveFilter(): bool
+    {
+        return $this->statusFilter !== ''
+            || filled($this->cariGlobal)
+            || $this->hasGranularFilter()
+            || ($this->nodeAktif()?->level !== 'negara' && $this->nodeAktif() !== null);
+    }
+
+    public function hapusFilterStatus(): void
+    {
+        $this->statusFilter = '';
+        $this->cacheHitungan = null;
+        $this->cacheHitunganKunci = null;
+    }
+
+    public function hapusFilterLompat(): void
+    {
+        $this->resetGranularFilters();
+        $this->pilihan = [];
+        $this->cacheTangga = null;
+        $this->cacheTanggaKunci = null;
+        $this->cacheHitungan = null;
+        $this->cacheHitunganKunci = null;
+        $this->resetTable();
+    }
+
+    public function resetSemuaFilter(): void
+    {
+        $this->statusFilter = '';
+        $this->cari = '';
+        $this->cariGlobal = '';
+        $this->hapusFilterLompat();
+    }
+
+    public function getNamaWilayahTerpilihProperty(): ?string
+    {
+        $node = $this->nodeAktif();
+
+        return $node && $node->level !== 'negara' ? $node->nama : null;
     }
 }

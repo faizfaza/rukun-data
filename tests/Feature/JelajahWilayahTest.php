@@ -300,4 +300,62 @@ class JelajahWilayahTest extends TestCase
             ->call('cariPersis', '2222222222222222')
             ->assertNoRedirect();
     }
+
+    public function test_filter_status_wilayah_pada_jelajah(): void
+    {
+        $w = $this->seedDasar();
+        $this->actingAs($this->makeUser('sa', 'superadmin', null));
+
+        $prov2 = Wilayah::create([
+            'kode' => 'T.2',
+            'nama' => 'Provinsi Uji 2',
+            'level' => 'provinsi',
+            'parent_id' => $w['negara']->id,
+            'is_active' => false,
+        ]);
+
+        $c = $this->buka($w);
+
+        // Without filter: both provinsi exist
+        $c->assertSee($w['provinsi']->nama)
+            ->assertSee($prov2->nama);
+
+        // Filter aktif only: only provinsi
+        $c->set('statusFilter', 'aktif')
+            ->assertSet('jumlahFilterAktif', 1);
+
+        $opsiAktif = $c->instance()->opsiSaatIni()->pluck('nama')->all();
+        $this->assertContains($w['provinsi']->nama, $opsiAktif);
+        $this->assertNotContains($prov2->nama, $opsiAktif);
+
+        // Filter nonaktif only: only prov2
+        $c->set('statusFilter', 'nonaktif');
+        $opsiNonaktif = $c->instance()->opsiSaatIni()->pluck('nama')->all();
+        $this->assertNotContains($w['provinsi']->nama, $opsiNonaktif);
+        $this->assertContains($prov2->nama, $opsiNonaktif);
+
+        // Hapus filter status
+        $c->call('hapusFilterStatus')
+            ->assertSet('statusFilter', '');
+    }
+
+    public function test_cascading_jump_filter_pada_jelajah(): void
+    {
+        $w = $this->seedDasar();
+        $this->actingAs($this->makeUser('sa', 'superadmin', null));
+
+        $c = $this->buka($w);
+
+        // Jump to kabkota via cascading
+        $c->set('filterProvinsi', $w['provinsi']->id)
+            ->set('filterKabkota', $w['kabupaten']->id);
+
+        $this->assertEquals($w['kabupaten']->id, $c->instance()->nodeAktif()->id);
+        $this->assertEquals($w['kabupaten']->nama, $c->instance()->namaWilayahTerpilih);
+
+        // Reset semua filter
+        $c->call('resetSemuaFilter')
+            ->assertSet('statusFilter', '')
+            ->assertSet('filterProvinsi', null);
+    }
 }

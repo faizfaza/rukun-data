@@ -80,23 +80,153 @@
 
             <p class="mt-2 pl-9 text-xs text-gray-500">{{ $this->lokasiLengkap($nodeAktif) }}</p>
 
-            {{-- Pencarian lintas tingkat: cari desa, kecamatan, RW, atau RT langsung, lalu lompat ke sana. --}}
-            <div class="mt-4 border-t border-gray-100 pt-4">
-                <label class="relative block">
-                    <x-filament::icon icon="heroicon-m-magnifying-glass" class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                    <input
-                        type="search"
-                        wire:model.live.debounce.400ms="cariGlobal"
-                        placeholder="Cari wilayah di semua tingkat (nama atau kode, mis. Bojongsoang)…"
-                        class="rd-search-input"
-                        autocomplete="off"
-                    />
-                </label>
+            <div x-data="{ openFilterModal: false }">
+                <!-- Baris Pencarian Lintas Tingkat & Tombol Filter Pop-up -->
+                <div class="mt-4 flex flex-wrap items-center gap-2.5 border-t border-gray-100 pt-4">
+                    <label class="relative block min-w-[240px] flex-1">
+                        <span class="sr-only">Cari wilayah di semua tingkat</span>
+                        <x-filament::icon icon="heroicon-m-magnifying-glass" class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="search"
+                            wire:model.live.debounce.500ms="cariGlobal"
+                            placeholder="Cari wilayah di semua tingkat (nama atau kode, mis. Bojongsoang)…"
+                            class="rd-search-input"
+                            autocomplete="off"
+                        />
+                    </label>
+
+                    <button
+                        type="button"
+                        @click="openFilterModal = true"
+                        class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border {{ $this->jumlahFilterAktif > 0 ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50' }} text-xs font-semibold shadow-sm transition"
+                    >
+                        <x-filament::icon icon="heroicon-m-funnel" class="h-4 w-4 {{ $this->jumlahFilterAktif > 0 ? 'text-indigo-600' : 'text-gray-500' }}" />
+                        <span>Filter</span>
+                        @if ($this->jumlahFilterAktif > 0)
+                            <span class="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white shadow-sm">
+                                {{ $this->jumlahFilterAktif }}
+                            </span>
+                        @endif
+                    </button>
+
+                    @if ($this->hasActiveFilter())
+                        <button
+                            type="button"
+                            wire:click="resetSemuaFilter"
+                            class="rd-filter-reset"
+                            title="Atur ulang semua filter"
+                        >
+                            <x-filament::icon icon="heroicon-m-arrow-path" class="h-3.5 w-3.5" />
+                            <span>Atur ulang</span>
+                        </button>
+                    @endif
+                </div>
+
+                <!-- Bubbles / Chips Filter yang Sedang Aktif -->
+                @if ($this->jumlahFilterAktif > 0)
+                    <div class="mt-3 flex flex-wrap items-center gap-1.5 pt-1">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400 mr-1">Filter Aktif:</span>
+
+                        @if (filled($statusFilter))
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span>Status: <strong>{{ $statusFilter === 'aktif' ? 'Wilayah Aktif' : ($statusFilter === 'nonaktif' ? 'Nonaktif' : 'Induk Down') }}</strong></span>
+                                <button type="button" wire:click="hapusFilterStatus" class="text-emerald-400 hover:text-emerald-700">
+                                    <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
+                                </button>
+                            </span>
+                        @endif
+
+                        @if ($this->namaWilayahTerpilih && ! $this->hasGranularFilter())
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                <span>Wilayah: <strong>{{ $this->namaWilayahTerpilih }}</strong></span>
+                                <button type="button" wire:click="hapusFilterLompat" class="text-blue-400 hover:text-blue-700">
+                                    <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
+                                </button>
+                            </span>
+                        @endif
+
+                        @if ($filterProvinsi && $this->namaFilterProvinsi)
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                <span>Provinsi: <strong>{{ $this->namaFilterProvinsi }}</strong></span>
+                                <button type="button" wire:click="hapusFilterProvinsi" class="text-blue-400 hover:text-blue-700">
+                                    <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
+                                </button>
+                            </span>
+                        @endif
+
+                        @if ($filterKabkota && $this->namaKabkotaTerpilih)
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                <span>Kab/Kota: <strong>{{ $this->namaKabkotaTerpilih }}</strong></span>
+                                <button type="button" wire:click="hapusFilterKabkota" class="text-blue-400 hover:text-blue-700">
+                                    <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
+                                </button>
+                            </span>
+                        @endif
+
+                        @if ($filterKecamatan && $this->namaKecamatanTerpilih)
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                <span>Kecamatan: <strong>{{ $this->namaKecamatanTerpilih }}</strong></span>
+                                <button type="button" wire:click="hapusFilterKecamatan" class="text-blue-400 hover:text-blue-700">
+                                    <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
+                                </button>
+                            </span>
+                        @endif
+
+                        @if ($filterDesa && $this->namaDesaTerpilih)
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                <span>Desa: <strong>{{ $this->namaDesaTerpilih }}</strong></span>
+                                <button type="button" wire:click="hapusFilterDesa" class="text-blue-400 hover:text-blue-700">
+                                    <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
+                                </button>
+                            </span>
+                        @endif
+
+                        @if ($filterRw && $this->namaRwTerpilih)
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                <span>RW: <strong>{{ $this->namaRwTerpilih }}</strong></span>
+                                <button type="button" wire:click="hapusFilterRw" class="text-blue-400 hover:text-blue-700">
+                                    <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
+                                </button>
+                            </span>
+                        @endif
+
+                        @if ($filterRt && $this->namaRtTerpilih)
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                <span>RT: <strong>{{ $this->namaRtTerpilih }}</strong></span>
+                                <button type="button" wire:click="hapusFilterRt" class="text-blue-400 hover:text-blue-700">
+                                    <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
+                                </button>
+                            </span>
+                        @endif
+
+                        <button
+                            type="button"
+                            wire:click="resetSemuaFilter"
+                            class="text-xs font-semibold text-gray-500 hover:text-rose-600 hover:underline ml-1"
+                        >
+                            Hapus semua filter
+                        </button>
+                    </div>
+                @endif
 
                 @php $hasilGlobal = $this->hasilCariGlobal(); @endphp
 
-                @if (mb_strlen(trim($cariGlobal)) >= 2)
-                    <div class="mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white">
+                @if (mb_strlen(trim($cariGlobal)) >= 2 || $this->hasGranularFilter())
+                    <div class="mt-4 mb-2 flex items-center justify-between">
+                        <span class="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            {{ $this->hasGranularFilter() ? 'Hasil Filter Wilayah (' . count($hasilGlobal) . ')' : 'Hasil Pencarian (' . count($hasilGlobal) . ')' }}
+                        </span>
+                        @if ($this->hasGranularFilter())
+                            <button
+                                type="button"
+                                wire:click="resetGranularFilters"
+                                class="text-xs font-semibold text-rose-600 hover:underline"
+                            >
+                                Kosongkan filter wilayah
+                            </button>
+                        @endif
+                    </div>
+                    <div class="mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                         @forelse ($hasilGlobal as $hasil)
                             <button
                                 type="button"
@@ -118,11 +248,236 @@
                             </button>
                         @empty
                             <div class="px-4 py-5 text-center text-sm text-gray-500">
-                                Tidak ada wilayah yang cocok dengan "{{ $cariGlobal }}".
+                                Tidak ada wilayah yang cocok dengan kriteria filter.
                             </div>
                         @endforelse
                     </div>
                 @endif
+
+                <!-- POP-UP MODAL FILTER KELOLA WARGA (TELEPORTED TO BODY) -->
+                <template x-teleport="body">
+                    <div
+                        x-show="openFilterModal"
+                        style="display: none;"
+                        class="fixed inset-0 z-[9999] overflow-y-auto"
+                        role="dialog"
+                        aria-modal="true"
+                        @keydown.escape.window="openFilterModal = false"
+                    >
+                        <!-- Full-screen backdrop -->
+                        <div
+                            x-show="openFilterModal"
+                            x-transition:enter="ease-out duration-200"
+                            x-transition:enter-start="opacity-0"
+                            x-transition:enter-end="opacity-100"
+                            x-transition:leave="ease-in duration-150"
+                            x-transition:leave-start="opacity-100"
+                            x-transition:leave-end="opacity-0"
+                            class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity"
+                            @click="openFilterModal = false"
+                        ></div>
+
+                        <!-- Modal dialog container -->
+                        <div class="fixed inset-0 z-[10000] flex min-h-screen items-center justify-center p-4 sm:p-6 pointer-events-none">
+                            <div
+                                x-show="openFilterModal"
+                                x-transition:enter="ease-out duration-200"
+                                x-transition:enter-start="opacity-0 scale-95 translate-y-3"
+                                x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                                x-transition:leave="ease-in duration-150"
+                                x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                                x-transition:leave-end="opacity-0 scale-95 translate-y-3"
+                                class="relative w-full max-w-xl max-h-[88vh] flex flex-col overflow-hidden rounded-2xl bg-white text-left shadow-2xl border border-gray-100 pointer-events-auto"
+                                @click.stop
+                            >
+                                <!-- Modal Header -->
+                                <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-white shrink-0">
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                                            <x-filament::icon icon="heroicon-o-funnel" class="h-5 w-5" />
+                                        </div>
+                                        <div>
+                                            <h3 class="text-base font-bold text-gray-950" id="modal-filter-warga-title">Filter Kelola Warga</h3>
+                                            <p class="text-xs text-gray-500">Saring wilayah berdasarkan status operasional atau lompat ke hierarki wilayah tertentu.</p>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        @click="openFilterModal = false"
+                                        class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+                                    >
+                                        <x-filament::icon icon="heroicon-m-x-mark" class="h-5 w-5" />
+                                    </button>
+                                </div>
+
+                                <!-- Modal Body (Scrollable) -->
+                                <div class="min-h-0 flex-1 overflow-y-auto px-6 py-5 space-y-4">
+                                    <label class="block space-y-1">
+                                        <span class="text-xs font-bold text-gray-800">Status Operasional Wilayah</span>
+                                        <select wire:model.live="statusFilter" class="rd-select text-xs">
+                                            <option value="">Semua Status</option>
+                                            <option value="aktif">Hanya Wilayah Aktif</option>
+                                            <option value="nonaktif">Hanya Wilayah Nonaktif</option>
+                                            <option value="down">Hanya Down (Induk Nonaktif)</option>
+                                        </select>
+                                    </label>
+
+                                    <!-- Filter Wilayah Fleksibel (Input Ketik + Datalist) -->
+                                    <div class="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
+                                        <div class="flex items-center justify-between gap-2 mb-2">
+                                            <div class="flex items-center gap-2">
+                                                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">
+                                                    <x-filament::icon icon="heroicon-m-map-pin" class="h-3 w-3" />
+                                                </span>
+                                                <span class="text-xs font-bold text-gray-900 uppercase tracking-wider">Filter Wilayah & RT / RW</span>
+                                            </div>
+
+                                            @if ($this->hasGranularFilter())
+                                                <button
+                                                    type="button"
+                                                    wire:click="resetGranularFilters"
+                                                    class="text-xs font-semibold text-indigo-700 hover:text-indigo-900 hover:underline"
+                                                >
+                                                    Kosongkan Wilayah
+                                                </button>
+                                            @elseif ($this->namaWilayahTerpilih)
+                                                <button
+                                                    type="button"
+                                                    wire:click="hapusFilterLompat"
+                                                    class="text-xs font-semibold text-indigo-700 hover:text-indigo-900 hover:underline"
+                                                >
+                                                    Kembali ke Nasional
+                                                </button>
+                                            @endif
+                                        </div>
+                                        <p class="text-[11px] text-gray-500 mb-3">
+                                            Ketik nama/nomor wilayah yang ingin disaring. Tidak wajib berurutan (misal: cukup ketik RW untuk melihat seluruh RW 01 di semua daerah).
+                                        </p>
+
+                                        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                                            <label class="block space-y-1">
+                                                <span class="text-[11px] font-semibold text-gray-700">Provinsi</span>
+                                                <input
+                                                    type="text"
+                                                    list="list-opsi-warga-provinsi"
+                                                    wire:model.live.debounce.500ms="filterProvinsi"
+                                                    placeholder="Ketik mis. Jawa Barat"
+                                                    class="rd-search-input text-xs"
+                                                />
+                                                <datalist id="list-opsi-warga-provinsi">
+                                                    @foreach ($this->daftarProvinsi as $nama)
+                                                        <option value="{{ $nama }}"></option>
+                                                    @endforeach
+                                                </datalist>
+                                            </label>
+
+                                            <label class="block space-y-1">
+                                                <span class="text-[11px] font-semibold text-gray-700">Kabupaten / Kota</span>
+                                                <input
+                                                    type="text"
+                                                    list="list-opsi-warga-kabkota"
+                                                    wire:model.live.debounce.500ms="filterKabkota"
+                                                    placeholder="Ketik mis. Garut atau Bandung"
+                                                    class="rd-search-input text-xs"
+                                                />
+                                                <datalist id="list-opsi-warga-kabkota">
+                                                    @foreach ($this->daftarKabkota as $nama)
+                                                        <option value="{{ $nama }}"></option>
+                                                    @endforeach
+                                                </datalist>
+                                            </label>
+
+                                            <label class="block space-y-1">
+                                                <span class="text-[11px] font-semibold text-gray-700">Kecamatan</span>
+                                                <input
+                                                    type="text"
+                                                    list="list-opsi-warga-kecamatan"
+                                                    wire:model.live.debounce.500ms="filterKecamatan"
+                                                    placeholder="Ketik mis. Bojongsoang"
+                                                    class="rd-search-input text-xs"
+                                                />
+                                                <datalist id="list-opsi-warga-kecamatan">
+                                                    @foreach ($this->daftarKecamatan as $nama)
+                                                        <option value="{{ $nama }}"></option>
+                                                    @endforeach
+                                                </datalist>
+                                            </label>
+
+                                            <label class="block space-y-1">
+                                                <span class="text-[11px] font-semibold text-gray-700">Desa / Kelurahan / Dusun</span>
+                                                <input
+                                                    type="text"
+                                                    list="list-opsi-warga-desa"
+                                                    wire:model.live.debounce.500ms="filterDesa"
+                                                    placeholder="Ketik mis. Lengkong atau Dusun Krajan"
+                                                    class="rd-search-input text-xs"
+                                                />
+                                                <datalist id="list-opsi-warga-desa">
+                                                    @foreach ($this->daftarDesa as $nama)
+                                                        <option value="{{ $nama }}"></option>
+                                                    @endforeach
+                                                </datalist>
+                                            </label>
+
+                                            <label class="block space-y-1">
+                                                <span class="text-[11px] font-semibold text-gray-700">RW</span>
+                                                <input
+                                                    type="text"
+                                                    list="list-opsi-warga-rw"
+                                                    wire:model.live.debounce.500ms="filterRw"
+                                                    placeholder="Ketik mis. RW 01 atau 01"
+                                                    class="rd-search-input text-xs"
+                                                />
+                                                <datalist id="list-opsi-warga-rw">
+                                                    @foreach ($this->daftarRw as $nama)
+                                                        <option value="{{ $nama }}"></option>
+                                                    @endforeach
+                                                </datalist>
+                                            </label>
+
+                                            <label class="block space-y-1">
+                                                <span class="text-[11px] font-semibold text-gray-700">RT</span>
+                                                <input
+                                                    type="text"
+                                                    list="list-opsi-warga-rt"
+                                                    wire:model.live.debounce.500ms="filterRt"
+                                                    placeholder="Ketik mis. RT 01 atau 01"
+                                                    class="rd-search-input text-xs"
+                                                />
+                                                <datalist id="list-opsi-warga-rt">
+                                                    @foreach ($this->daftarRt as $nama)
+                                                        <option value="{{ $nama }}"></option>
+                                                    @endforeach
+                                                </datalist>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Modal Footer (Always visible at bottom) -->
+                                <div class="flex items-center justify-between border-t border-gray-100 bg-gray-50/80 px-6 py-3.5 shrink-0">
+                                    <button
+                                        type="button"
+                                        wire:click="resetSemuaFilter"
+                                        class="text-xs font-semibold text-gray-600 hover:text-gray-950 transition"
+                                    >
+                                        Atur Ulang
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        @click="openFilterModal = false"
+                                        class="fi-btn fi-btn-size-sm inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition"
+                                    >
+                                        <x-filament::icon icon="heroicon-m-check" class="h-4 w-4" />
+                                        <span>Terapkan Filter</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
             </div>
 
 

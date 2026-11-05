@@ -37,7 +37,7 @@ class PekerjaanChart extends ChartWidget
             'datasets' => [[
                 'label' => 'Anggota',
                 'data' => $rows->pluck('total')->all(),
-                'backgroundColor' => ['#0b0f14', '#4755ae', '#8b8fc7', '#c3c7e3', '#6b7280', '#9ca3af', '#d1d5db', '#e5e7eb'],
+                'backgroundColor' => ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#3b82f6'],
             ]],
             'labels' => $rows->pluck('label')->all(),
         ];
@@ -66,12 +66,12 @@ class PekerjaanChart extends ChartWidget
             'scales' => [
                 'x' => [
                     'beginAtZero' => true,
-                    'grid' => ['color' => '#f1f2f4'],
-                    'ticks' => ['color' => '#6b7280', 'font' => ['size' => 11], 'precision' => 0],
+                    'grid' => ['color' => '#f1f5f9'],
+                    'ticks' => ['color' => '#64748b', 'font' => ['size' => 13, 'weight' => '600'], 'precision' => 0],
                 ],
                 'y' => [
                     'grid' => ['display' => false],
-                    'ticks' => ['color' => '#4b5563', 'font' => ['size' => 11]],
+                    'ticks' => ['color' => '#334155', 'font' => ['size' => 13, 'weight' => '600']],
                 ],
             ],
         ];

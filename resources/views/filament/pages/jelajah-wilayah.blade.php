@@ -65,7 +65,7 @@
                 <span class="rd-panel-icon h-7 w-7">
                     <x-filament::icon icon="heroicon-o-map-pin" class="h-3.5 w-3.5" />
                 </span>
-                <span class="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-gray-400">
+                <span class="text-xs font-bold uppercase tracking-[0.08em] text-gray-400">
                     {{ $user?->isAdminRt() ? 'Wilayah tugas' : 'Lokasi aktif' }}
                 </span>
                 <span class="rd-chip rd-chip-active">{{ $namaNode }}</span>
@@ -79,6 +79,52 @@
             </div>
 
             <p class="mt-2 pl-9 text-xs text-gray-500">{{ $this->lokasiLengkap($nodeAktif) }}</p>
+
+            {{-- Pencarian lintas tingkat: cari desa, kecamatan, RW, atau RT langsung, lalu lompat ke sana. --}}
+            <div class="mt-4 border-t border-gray-100 pt-4">
+                <label class="relative block">
+                    <x-filament::icon icon="heroicon-m-magnifying-glass" class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                    <input
+                        type="search"
+                        wire:model.live.debounce.400ms="cariGlobal"
+                        placeholder="Cari wilayah di semua tingkat (nama atau kode, mis. Bojongsoang)…"
+                        class="rd-search-input"
+                        autocomplete="off"
+                    />
+                </label>
+
+                @php $hasilGlobal = $this->hasilCariGlobal(); @endphp
+
+                @if (mb_strlen(trim($cariGlobal)) >= 2)
+                    <div class="mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white">
+                        @forelse ($hasilGlobal as $hasil)
+                            <button
+                                type="button"
+                                wire:key="global-{{ $hasil['id'] }}"
+                                wire:click="lompatKe({{ $hasil['id'] }})"
+                                class="group flex w-full items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 text-left transition last:border-b-0 hover:bg-gray-50"
+                            >
+                                <span class="min-w-0">
+                                    <span class="block truncate text-sm font-semibold text-gray-900">{{ $hasil['nama'] }}</span>
+                                    <span class="block truncate text-xs text-gray-500">{{ $hasil['chain'] ?: '—' }}</span>
+                                </span>
+                                <span class="flex shrink-0 items-center gap-2">
+                                    @if ($hasil['status'] !== 'active')
+                                        <span class="rd-chip border-rose-200 bg-rose-50 text-rose-700">{{ $hasil['status_label'] }}</span>
+                                    @endif
+                                    <span class="rd-chip">{{ $hasil['level'] }}</span>
+                                    <x-filament::icon icon="heroicon-m-chevron-right" class="h-4 w-4 text-gray-300 group-hover:text-gray-500" />
+                                </span>
+                            </button>
+                        @empty
+                            <div class="px-4 py-5 text-center text-sm text-gray-500">
+                                Tidak ada wilayah yang cocok dengan "{{ $cariGlobal }}".
+                            </div>
+                        @endforelse
+                    </div>
+                @endif
+            </div>
+
 
             @if ($langkah !== null)
                 <div class="mt-4 border-t border-gray-100 pt-4">
@@ -146,13 +192,13 @@
                         @foreach ($grup as $g)
                             <div>
                                 @if ($g['judul'] !== null)
-                                    <div class="mb-2 flex items-center justify-between px-1 text-[0.68rem] font-bold uppercase tracking-[0.08em] text-gray-500">
+                                    <div class="mb-2 flex items-center justify-between px-1 text-xs font-bold uppercase tracking-[0.08em] text-gray-500">
                                         <span>{{ $g['judul'] }}</span>
                                         <span>{{ $g['opsi']->count() }}</span>
                                     </div>
                                 @endif
 
-                                <div class="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                                <div class="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                                     @forelse ($g['opsi'] as $opsi)
                                         @php
                                             $h = $hitungan[$opsi->id] ?? null;
@@ -168,7 +214,7 @@
                                             type="button"
                                             wire:key="opsi-{{ $opsi->id }}"
                                             wire:click="pilih({{ $langkah['indeks'] }}, {{ $opsi->id }})"
-                                            class="group flex w-full items-center justify-between gap-3 border-b border-gray-100 px-3.5 py-3 text-left transition last:border-b-0 hover:bg-gray-50"
+                                            class="group flex w-full items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-left transition hover:border-gray-300 hover:bg-gray-50"
                                         >
                                             <span class="flex min-w-0 items-center gap-2.5">
                                                 <span class="rd-list-icon h-7 w-7">
@@ -176,11 +222,16 @@
                                                 </span>
                                                 <span class="min-w-0">
                                                     <span class="block truncate text-sm font-semibold text-gray-900">{{ $opsi->nama }}</span>
-                                                    <span class="block text-[0.68rem] text-gray-400">{{ $this->labelUntuk($opsi) }}</span>
+                                                    <span class="block text-xs text-gray-400">{{ $this->labelUntuk($opsi) }}</span>
                                                 </span>
                                             </span>
 
                                             <span class="flex shrink-0 items-center gap-2">
+                                                @if (! $opsi->is_active)
+                                                    <span class="rd-chip border-rose-200 bg-rose-50 text-rose-700">Nonaktif</span>
+                                                @elseif (! $opsi->aktifEfektif())
+                                                    <span class="rd-chip border-amber-200 bg-amber-50 text-amber-700">Induk Down</span>
+                                                @endif
                                                 @if ($h !== null)
                                                     <span class="rd-chip">{{ $h['label'] }}</span>
                                                 @endif
@@ -188,7 +239,7 @@
                                             </span>
                                         </button>
                                     @empty
-                                        <div class="px-4 py-6 text-center text-sm text-gray-500">
+                                        <div class="col-span-full rounded-xl border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-500">
                                             {{ $cari !== '' ? 'Tidak ada hasil untuk "'.$cari.'".' : 'Belum ada '.strtolower($langkah['label']).' di wilayah ini.' }}
                                         </div>
                                     @endforelse
@@ -201,6 +252,19 @@
         </section>
 
         @if ($rt !== null)
+            @if (! $rt->aktifEfektif())
+                <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 flex items-center gap-3">
+                    <x-filament::icon icon="heroicon-m-exclamation-triangle" class="h-5 w-5 text-rose-600 shrink-0" />
+                    <div>
+                        <p class="font-semibold">Wilayah ini sedang DOWN / Nonaktif</p>
+                        <p class="text-xs text-rose-700 mt-0.5">
+                            {{ ! $rt->is_active ? 'RT ini dinonaktifkan secara langsung.' : 'RT ini tidak operasional karena induk wilayahnya sedang dinonaktifkan.' }}
+                            Penambahan data keluarga di wilayah ini tidak dapat dilakukan sampai wilayah diaktifkan kembali.
+                        </p>
+                    </div>
+                </div>
+            @endif
+
             <x-filament::section class="rd-table-section">
                 <x-slot name="heading">
                     <div class="flex flex-wrap items-center gap-2">
@@ -233,6 +297,12 @@
                     Belum ada wilayah di bawah {{ $this->nodeAktif()->nama }}.
                 </div>
             </x-filament::section>
+        @endif
+
+        {{-- Tabel hanya dirender di level RT dan membawa wadah modalnya sendiri; di level
+             lain wadah modal harus ada supaya aksi "Cari No KK / NIK" bisa tampil. --}}
+        @if ($rt === null)
+            <x-filament-actions::modals />
         @endif
     </div>
 </x-filament-panels::page>

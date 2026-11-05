@@ -31,6 +31,14 @@ class CreateUser extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        if (($data['role'] ?? null) === \App\Enums\Role::AdminRw->value) {
+            $data['id_wilayah'] = $data['id_wilayah'] ?? $data['rw_id'] ?? null;
+        } elseif (($data['role'] ?? null) === \App\Enums\Role::AdminRt->value) {
+            $data['id_wilayah'] = $data['id_wilayah'] ?? $data['rt_id'] ?? null;
+        } elseif (in_array($data['role'] ?? null, [\App\Enums\Role::Superadmin->value, \App\Enums\Role::Admin->value], true)) {
+            $data['id_wilayah'] = null;
+        }
+
         if ($target = $this->wilayahKonteks) {
             if ((int) ($data['id_wilayah'] ?? 0) !== $target) {
                 throw ValidationException::withMessages(['data.id_wilayah' => 'Wilayah harus sesuai konteks pembuatan admin.']);

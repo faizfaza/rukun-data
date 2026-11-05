@@ -133,9 +133,17 @@ class User extends Authenticatable implements FilamentUser
     }
 
     // Semua akun dibuat superadmin/admin, tanpa registrasi mandiri (§3).
-    // Akun nonaktif tidak boleh masuk panel.
+    // Akun nonaktif atau akun dengan wilayah penugasan yang sedang down tidak boleh masuk panel.
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->is_active === true;
+        if ($this->is_active !== true) {
+            return false;
+        }
+
+        if ($this->id_wilayah !== null && ! $this->wilayah?->aktifEfektif()) {
+            return false;
+        }
+
+        return true;
     }
 }

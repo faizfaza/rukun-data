@@ -95,7 +95,7 @@
                     <span>Hanya admin tanpa penugasan</span>
                 </label>
 
-                <span class="ml-auto text-[0.7rem] text-gray-500">
+                <span class="ml-auto text-xs text-gray-500">
                     {{ number_format($counters[0], 0, ',', '.') }} admin
                     @if (! $global)
                         · {{ number_format($counters[1], 0, ',', '.') }} keluarga
@@ -189,7 +189,7 @@
                             </span>
                             <span class="min-w-0 flex-1">
                                 <span class="block truncate text-sm font-semibold text-gray-900 group-hover:text-gray-950">{{ $detail['nama'] }}</span>
-                                <span class="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[0.65rem] font-medium text-gray-500">
+                                <span class="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs font-medium text-gray-500">
                                     <span class="font-mono">{{ $detail['kode'] }}</span>
                                     @if ($detail['chain'] !== '')
                                         <span class="truncate" title="{{ $detail['chain'] }}">{{ $detail['chain'] }}</span>
@@ -201,7 +201,7 @@
                                         'fi-color-gray' => $detail['status'] === 'inactive',
                                     ])>{{ $detail['status_label'] }}</span>
                                 </span>
-                                <span class="mt-0.5 block text-[0.65rem] font-medium uppercase tracking-wider text-gray-500">{{ \App\Models\Wilayah::labelLevel($child->level) }}</span>
+                                <span class="mt-0.5 block text-xs font-medium uppercase tracking-wider text-gray-500">{{ \App\Models\Wilayah::labelLevel($child->level) }}</span>
                             </span>
                             <x-filament::icon icon="heroicon-m-chevron-right" class="h-4 w-4 shrink-0 text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-gray-500" />
                         </button>
@@ -213,7 +213,7 @@
                 </div>
 
                 <footer class="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3">
-                    <span class="text-[0.7rem] text-gray-500">
+                    <span class="text-xs text-gray-500">
                         @if ($totalWilayah > 0)
                             Menampilkan {{ $awal }}–{{ $akhir }} dari {{ number_format($totalWilayah, 0, ',', '.') }} wilayah · Halaman {{ $halamanWilayah }} / {{ $totalHalaman }}
                         @else

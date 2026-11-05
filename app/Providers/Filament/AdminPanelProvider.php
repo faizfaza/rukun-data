@@ -17,6 +17,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -43,24 +44,26 @@ class AdminPanelProvider extends PanelProvider
             // Sidebar terang ala HRISELINK, topbar dimatikan.
             ->topbar(false)
             ->sidebarWidth('16rem')
+            // Konten memakai seluruh lebar layar, tidak lagi terpusat dengan margin kosong.
+            ->maxContentWidth(Width::Full)
             ->darkMode(false)
             ->colors([
-                // Aksen utama near-black; biru dipakai sebagai aksen sekunder.
+                // Palet Civic Blue modern — tidak monochrome, cerah bersahabat, kontras tinggi.
                 'primary' => [
-                    50 => '#f7f8f9',
-                    100 => '#eceef1',
-                    200 => '#d9dde4',
-                    300 => '#b9c0cb',
-                    400 => '#8b95a5',
-                    500 => '#4b5563',
-                    600 => '#0b0f14',
-                    700 => '#0b0f14',
-                    800 => '#080b0e',
-                    900 => '#050709',
-                    950 => '#000000',
+                    50 => '#eff6ff',
+                    100 => '#dbeafe',
+                    200 => '#bfdbfe',
+                    300 => '#93c5fd',
+                    400 => '#60a5fa',
+                    500 => '#3b82f6',
+                    600 => '#2563eb',
+                    700 => '#1d4ed8',
+                    800 => '#1e40af',
+                    900 => '#1e3a8a',
+                    950 => '#172554',
                 ],
-                'gray' => Color::Zinc,
-                'info' => Color::Indigo,
+                'gray' => Color::Slate,
+                'info' => Color::Sky,
                 'success' => Color::Emerald,
                 'warning' => Color::Amber,
                 'danger' => Color::Rose,

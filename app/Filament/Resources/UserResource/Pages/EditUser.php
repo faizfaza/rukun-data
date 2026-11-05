@@ -42,6 +42,14 @@ class EditUser extends EditRecord
     {
         $record = $this->getRecord();
 
+        if (($data['role'] ?? null) === \App\Enums\Role::AdminRw->value) {
+            $data['id_wilayah'] = $data['id_wilayah'] ?? $data['rw_id'] ?? null;
+        } elseif (($data['role'] ?? null) === \App\Enums\Role::AdminRt->value) {
+            $data['id_wilayah'] = $data['id_wilayah'] ?? $data['rt_id'] ?? null;
+        } elseif (in_array($data['role'] ?? null, [\App\Enums\Role::Superadmin->value, \App\Enums\Role::Admin->value], true)) {
+            $data['id_wilayah'] = null;
+        }
+
         // Admin tidak boleh mengubah peran atau menonaktifkan dirinya sendiri.
         if ($record->is(auth()->user())) {
             $data['role'] = $record->role->value;

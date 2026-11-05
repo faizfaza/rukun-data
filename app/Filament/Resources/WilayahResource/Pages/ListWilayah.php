@@ -2,9 +2,17 @@
 
 namespace App\Filament\Resources\WilayahResource\Pages;
 
+use App\Filament\Resources\AnggotaResource;
+use App\Filament\Resources\KeluargaResource;
 use App\Filament\Resources\WilayahResource;
+use App\Models\Anggota;
+use App\Models\Keluarga;
 use App\Models\Wilayah;
+use App\Support\SensitiveData;
+use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,25 +30,39 @@ class ListWilayah extends ListRecords
     #[Url(as: 'mode')]
     public string $mode = 'hirarki';
 
-    // Tab gabungan: Jelajah (operasional) dan Master (pengelolaan wilayah).
+    // Tab parameter dipertahankan untuk kompatibilitas tautan lama
     #[Url(as: 'tab')]
     public string $tab = 'master';
 
     #[Url(as: 'level')]
     public string $levelFilter = '';
 
-    // Node yang dipilih saat membuka tab Jelajah lewat tautan langsung.
+    // Node yang dipilih saat membuka lewat tautan langsung.
     #[Url(as: 'wilayah')]
     public ?int $wilayahId = null;
 
+    public string $cariKk = '';
+
     public function mount(): void
     {
+        if (request()->query('tab') === 'jelajah') {
+            $wilayah = request()->query('wilayah');
+
+            $this->redirect(\App\Filament\Pages\JelajahWilayah::getUrl(array_filter(['wilayah' => $wilayah])));
+
+            return;
+        }
+
         parent::mount();
 
         $user = auth()->user();
 
-        if ($user?->isAdminRt() || ! $this->bolehMaster()) {
-            $this->tab = 'jelajah';
+        if ($this->wilayahId !== null && $this->parentId === null) {
+            $this->parentId = $this->wilayahId;
+        }
+
+        if ($user?->isAdminRt() && $user->id_wilayah && $this->parentId === null) {
+            $this->parentId = $user->id_wilayah;
         }
 
         if ($user?->isAdminRw() && $user->id_wilayah && $this->parentId === null && $this->mode === 'hirarki') {
@@ -50,12 +72,17 @@ class ListWilayah extends ListRecords
 
     public function getTitle(): string
     {
-        return $this->tab === 'jelajah' ? 'Jelajah Wilayah' : 'Master Wilayah';
+        $parent = $this->currentParent();
+        if ($parent !== null) {
+            return 'Kelola Wilayah · '.$parent->nama;
+        }
+
+        return 'Kelola Wilayah';
     }
 
     public function getBreadcrumb(): string
     {
-        return $this->tab === 'jelajah' ? 'Jelajah' : 'Master';
+        return 'Kelola Wilayah';
     }
 
     public function bolehMaster(): bool
@@ -63,6 +90,55 @@ class ListWilayah extends ListRecords
         $user = auth()->user();
 
         return (bool) ($user?->isSuperadmin() || $user?->isAdmin() || $user?->isAdminRw());
+    }
+
+    public function isViewingRt(): bool
+    {
+        return $this->mode === 'hirarki' && $this->currentParent()?->level === 'rt';
+    }
+
+    public function getDaftarKeluargaProperty()
+    {
+        $parent = $this->currentParent();
+        if (! $parent || $parent->level !== 'rt') {
+            return collect();
+        }
+
+        $query = Keluarga::where('id_wilayah', $parent->id)
+            ->with(['kepala'])
+            ->withCount('anggota')
+            ->latest();
+
+        if (filled($this->cariKk)) {
+            $digits = SensitiveData::digits($this->cariKk);
+            if (strlen($digits) === 16) {
+                $hash = SensitiveData::hash($digits);
+                $query->where('no_kk_hash', $hash);
+            } else {
+                $query->where('kode_pos', 'like', '%'.$this->cariKk.'%');
+            }
+        }
+
+        return $query->get();
+    }
+
+    public function getStatistikRtProperty(): array
+    {
+        $parent = $this->currentParent();
+        if (! $parent || $parent->level !== 'rt') {
+            return ['keluarga' => 0, 'anggota' => 0];
+        }
+
+        $keluargaCount = Keluarga::where('id_wilayah', $parent->id)->count();
+        $anggotaCount = Anggota::whereIn(
+            'id_keluarga',
+            Keluarga::where('id_wilayah', $parent->id)->select('id')
+        )->count();
+
+        return [
+            'keluarga' => $keluargaCount,
+            'anggota' => $anggotaCount,
+        ];
     }
 
     public function titikAwalJelajah(): ?Wilayah
@@ -82,23 +158,82 @@ class ListWilayah extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        if ($this->tab === 'jelajah') {
-            return [];
+        $parent = $this->currentParent();
+        $user = auth()->user();
+        $actions = [];
+
+        if ($parent !== null && $parent->level === 'rt') {
+            if ($parent->aktifEfektif() && ($user?->isSuperadmin() || $user?->isAdmin() || $user?->isAdminRw() || $user?->isAdminRt())) {
+                $actions[] = Action::make('tambahKeluarga')
+                    ->label('Tambah KK')
+                    ->icon('heroicon-o-plus')
+                    ->color('primary')
+                    ->button()
+                    ->url(KeluargaResource::getUrl('create', ['id_wilayah' => $parent->id]));
+            }
+
+            if ($user?->can('update', $parent)) {
+                $actions[] = Action::make('ubahRt')
+                    ->label('Ubah Data RT')
+                    ->icon('heroicon-o-pencil-square')
+                    ->color('gray')
+                    ->outlined()
+                    ->button()
+                    ->url(WilayahResource::getUrl('edit', ['record' => $parent->id]));
+            }
+        } else {
+            if ($user?->isSuperadmin() || $user?->isAdmin() || $user?->isAdminRw()) {
+                $actions[] = CreateAction::make()
+                    ->label('Tambah wilayah')
+                    ->url(fn (): string => WilayahResource::getUrl('create', array_filter([
+                        'parent_id' => $this->parentId,
+                    ])));
+            }
         }
 
-        return [
-            CreateAction::make()
-                ->label('Tambah wilayah')
-                ->url(fn (): string => WilayahResource::getUrl('create', array_filter([
-                    'parent_id' => $this->parentId,
-                ]))),
-        ];
+        $actions[] = Action::make('cariKkNik')
+            ->label('Cari No KK / NIK')
+            ->icon('heroicon-o-magnifying-glass')
+            ->color('gray')
+            ->outlined()
+            ->button()
+            ->form([
+                TextInput::make('nomor')
+                    ->label('No KK atau NIK persis')
+                    ->required()
+                    ->length(16)
+                    ->rule('regex:/^[0-9]{16}$/')
+                    ->helperText('Masukkan 16 digit lengkap.'),
+            ])
+            ->action(function (array $data): void {
+                $hash = SensitiveData::hash(SensitiveData::digits($data['nomor']));
+                $keluarga = Keluarga::where('no_kk_hash', $hash)->first();
+                if ($keluarga !== null) {
+                    $this->redirect(KeluargaResource::getUrl('view', ['record' => $keluarga]));
+
+                    return;
+                }
+
+                $anggota = Anggota::where('nik_hash', $hash)->first();
+                if ($anggota !== null) {
+                    $this->redirect(AnggotaResource::getUrl('view', ['record' => $anggota]));
+
+                    return;
+                }
+
+                Notification::make()
+                    ->warning()
+                    ->title('Data tidak ditemukan')
+                    ->body('Tidak ada No KK atau NIK tersebut di wilayah Anda.')
+                    ->send();
+            });
+
+        return $actions;
     }
 
     protected function getTableQuery(): Builder
     {
-        // Tabel master tidak dirender saat tab Jelajah aktif.
-        if ($this->tab === 'jelajah') {
+        if ($this->isViewingRt()) {
             return parent::getTableQuery()->whereRaw('1 = 0');
         }
 
@@ -132,6 +267,11 @@ class ListWilayah extends ListRecords
             return $this->applyLevelFilter($query);
         }
 
+        // Khusus petugas RT:
+        if ($user?->isAdminRt()) {
+            return $this->applyLevelFilter($query->where('id', $user->id_wilayah));
+        }
+
         // Khusus petugas RW:
         if ($user?->isAdminRw()) {
             $parent = $this->currentParent();
@@ -163,6 +303,10 @@ class ListWilayah extends ListRecords
         $user = auth()->user();
 
         if ($this->parentId === null) {
+            if ($user?->isAdminRt() && $user->id_wilayah) {
+                return $user->wilayah;
+            }
+
             if ($user?->isAdminRw() && $user->id_wilayah) {
                 return $user->wilayah;
             }
@@ -172,9 +316,19 @@ class ListWilayah extends ListRecords
 
         $parent = Wilayah::find($this->parentId);
         if ($parent === null) {
-            $this->parentId = $user?->isAdminRw() ? $user->id_wilayah : null;
+            $this->parentId = $user?->isAdminRt()
+                ? $user->id_wilayah
+                : ($user?->isAdminRw() ? $user->id_wilayah : null);
 
-            return $user?->isAdminRw() ? $user->wilayah : null;
+            return $user?->isAdminRt() ? $user->wilayah : ($user?->isAdminRw() ? $user->wilayah : null);
+        }
+
+        if ($user?->isAdminRt()) {
+            if ($parent->id !== $user->id_wilayah) {
+                $this->parentId = $user->id_wilayah;
+
+                return $user->wilayah;
+            }
         }
 
         if ($user?->isAdminRw()) {
@@ -197,6 +351,10 @@ class ListWilayah extends ListRecords
         }
 
         $user = auth()->user();
+        if ($user?->isAdminRt() && $user->wilayah !== null) {
+            return [$user->wilayah];
+        }
+
         if ($user?->isAdminRw() && $user->wilayah !== null) {
             $rw = $user->wilayah;
             if ($parent->id === $rw->id) {

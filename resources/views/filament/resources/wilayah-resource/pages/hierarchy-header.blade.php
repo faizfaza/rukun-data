@@ -3,14 +3,19 @@
     $breadcrumbs = $this->breadcrumbsList();
     $mode = $this->mode;
     $user = auth()->user();
+    $isRt = $user?->isAdminRt();
     $isRw = $user?->isAdminRw();
-    $rootUrl = $isRw && $user->id_wilayah
+    $rootUrl = $isRt && $user->id_wilayah
         ? \App\Filament\Resources\WilayahResource::getUrl('index', ['parent' => $user->id_wilayah])
-        : \App\Filament\Resources\WilayahResource::getUrl('index');
-    $rootLabel = $isRw ? ($user->wilayah?->nama ?? 'RW Saya') : 'Nasional';
-    $isAtRoot = $isRw
+        : ($isRw && $user->id_wilayah
+            ? \App\Filament\Resources\WilayahResource::getUrl('index', ['parent' => $user->id_wilayah])
+            : \App\Filament\Resources\WilayahResource::getUrl('index'));
+    $rootLabel = $isRt ? ($user->wilayah?->nama ?? 'RT Saya') : ($isRw ? ($user->wilayah?->nama ?? 'RW Saya') : 'Nasional');
+    $isAtRoot = $isRt
         ? ($parent === null || $parent->id === $user->id_wilayah)
-        : ($parent === null);
+        : ($isRw
+            ? ($parent === null || $parent->id === $user->id_wilayah)
+            : ($parent === null));
 @endphp
 
 <div class="flex flex-col gap-3">
@@ -52,21 +57,23 @@
         <div class="flex flex-wrap items-center gap-2">
             @if ($mode === 'hirarki' && ! $isAtRoot && $parent !== null)
                 @php
-                    $upUrl = $parent->parent_id && (! $isRw || $parent->parent_id !== $user->id_wilayah)
+                    $upUrl = $parent->parent_id && (! $isRw || $parent->parent_id !== $user->id_wilayah) && (! $isRt)
                         ? \App\Filament\Resources\WilayahResource::getUrl('index', ['parent' => $parent->parent_id])
                         : $rootUrl;
                     $upTarget = $parent->parent;
                     $upLabel = $upTarget ? $upTarget->nama : $rootLabel;
                 @endphp
-                <a
-                    href="{{ $upUrl }}"
-                    wire:navigate
-                    class="rd-quiet-link"
-                    title="Kembali ke {{ $upLabel }}"
-                >
-                    <x-filament::icon icon="heroicon-m-arrow-left" class="h-3.5 w-3.5" />
-                    <span>Naik ke {{ $upLabel }}</span>
-                </a>
+                @if (! $isRt)
+                    <a
+                        href="{{ $upUrl }}"
+                        wire:navigate
+                        class="rd-quiet-link"
+                        title="Kembali ke {{ $upLabel }}"
+                    >
+                        <x-filament::icon icon="heroicon-m-arrow-left" class="h-3.5 w-3.5" />
+                        <span>Naik ke {{ $upLabel }}</span>
+                    </a>
+                @endif
             @endif
 
             <nav class="fi-tabs w-fit">

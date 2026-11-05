@@ -33,9 +33,17 @@ class CreateWilayah extends CreateRecord
                     default => null,
                 };
 
+                $ancestors = $parent->ancestors()->keyBy('level');
+
                 $this->form->fill([
                     'level' => $childLevel,
                     'parent_id' => $parent->id,
+                    'provinsi_id' => $ancestors->get('provinsi')?->id ?? ($parent->level === 'provinsi' ? $parent->id : null),
+                    'kabkota_id' => $ancestors->get('kabupaten_kota')?->id ?? ($parent->level === 'kabupaten_kota' ? $parent->id : null),
+                    'kecamatan_id' => $ancestors->get('kecamatan')?->id ?? ($parent->level === 'kecamatan' ? $parent->id : null),
+                    'desa_id' => $ancestors->get('desa')?->id ?? ($parent->level === 'desa' ? $parent->id : null),
+                    'dusun_id' => $parent->level === 'dusun' ? $parent->id : ($parent->level === 'desa' ? $parent->id : null),
+                    'rw_id' => $ancestors->get('rw')?->id ?? ($parent->level === 'rw' ? $parent->id : null),
                 ]);
             }
         }
@@ -47,6 +55,19 @@ class CreateWilayah extends CreateRecord
         if ($user?->isAdminRw()) {
             $data['level'] = 'rt';
             $data['parent_id'] = $user->id_wilayah;
+        }
+
+        if (! ($data['parent_id'] ?? null)) {
+            $data['parent_id'] = match ($data['level'] ?? null) {
+                'provinsi' => Wilayah::where('level', 'negara')->value('id'),
+                'kabupaten_kota' => $data['provinsi_id'] ?? null,
+                'kecamatan' => $data['kabkota_id'] ?? null,
+                'desa' => $data['kecamatan_id'] ?? null,
+                'dusun' => $data['desa_id'] ?? null,
+                'rw' => $data['dusun_id'] ?? $data['desa_id'] ?? null,
+                'rt' => $data['rw_id'] ?? null,
+                default => null,
+            };
         }
 
         return $data;

@@ -2,10 +2,12 @@
 
 namespace App\Filament\Pages\Auth;
 
+use App\Models\User;
 use Filament\Auth\Pages\Login as BaseLogin;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use SensitiveParameter;
 
@@ -33,6 +35,18 @@ class Login extends BaseLogin
 
     protected function throwFailureValidationException(): never
     {
+        $username = $this->data['username'] ?? null;
+        if ($username) {
+            $user = User::where('username', $username)->first();
+            if ($user && Hash::check($this->data['password'] ?? '', $user->password)) {
+                if ($user->id_wilayah !== null && ! $user->wilayah?->aktifEfektif()) {
+                    throw ValidationException::withMessages([
+                        'data.username' => 'Wilayah penugasan Anda ('.$user->wilayah?->nama.') sedang dinonaktifkan / down.',
+                    ]);
+                }
+            }
+        }
+
         // DESIGN.md §7.1: pesan gagal yang jelas dan menyebut penyebab.
         throw ValidationException::withMessages([
             'data.username' => 'Username atau password salah.',

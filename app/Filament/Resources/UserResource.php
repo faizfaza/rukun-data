@@ -11,6 +11,8 @@ use App\Support\WilayahAccess;
 use App\Support\WilayahPicker;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -23,6 +25,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\HtmlString;
 
 // Fase 2.5: manajemen akun. Superadmin melihat semua akun; admin_rw hanya
 // akun admin_rt di RW-nya. Form dibatasi kewenangan pembuat (peran & wilayah).
@@ -69,27 +72,263 @@ class UserResource extends Resource
                     ->helperText('Wajib saat membuat akun. Kosongkan bila tidak ingin mengubah.'),
 
                 Select::make('role')
-                    ->label('Akun dan Peran')->default(fn () => match (Wilayah::find(request()->integer('id_wilayah'))?->level) {
+                    ->label('Akun dan Peran')
+                    ->default(fn () => match (Wilayah::find(request()->integer('id_wilayah'))?->level) {
                         'rw' => 'admin_rw', 'rt' => 'admin_rt', default => null
                     })
                     ->options(fn (?User $record): array => static::roleOptions($record))
                     ->required()
                     ->live()
-                    ->afterStateUpdated(fn (Set $set) => $set('id_wilayah', null))
+                    ->afterStateUpdated(function (Set $set, ?string $state, Get $get) {
+                        if (in_array($state, [Role::Superadmin->value, Role::Admin->value], true)) {
+                            $set('provinsi_id', null);
+                            $set('kabkota_id', null);
+                            $set('kecamatan_id', null);
+                            $set('kelurahan_id', null);
+                            $set('rw_id', null);
+                            $set('rt_id', null);
+                            $set('id_wilayah', null);
+                        } elseif ($state === Role::AdminRw->value) {
+                            $set('rt_id', null);
+                            $set('id_wilayah', $get('rw_id'));
+                        } elseif ($state === Role::AdminRt->value) {
+                            $set('id_wilayah', $get('rt_id'));
+                        }
+                    })
                     ->disabled(fn (?User $record): bool => $record !== null && $record->is(auth()->user())),
 
             ])->columns(2)->columnSpanFull(),
-            Section::make('Wilayah Penugasan')->schema([
-                Select::make('id_wilayah')
-                    ->label('Wilayah Penugasan')->default(fn () => request()->integer('id_wilayah') ?: null)
-                    ->getSearchResultsUsing(fn (string $search, Get $get) => WilayahPicker::search($search, Role::tryFrom((string) $get('role'))?->levelWilayah() ?? '__none'))
-                    ->getOptionLabelUsing(fn ($value) => Wilayah::find($value)?->alamatLengkap())
-                    ->searchable()
+            Section::make('Wilayah Penugasan')
+                ->description(fn (Get $get): string => match ($get('role')) {
+                    Role::AdminRw->value => 'Pilih wilayah penugasan secara terurut dari Provinsi hingga RW.',
+                    Role::AdminRt->value => 'Pilih wilayah penugasan secara terurut dari Provinsi hingga RT.',
+                    default => 'Pilih peran Admin RW atau Admin RT untuk menentukan wilayah penugasan.',
+                })
+                ->icon('heroicon-o-map-pin')
+                ->visible(fn (Get $get): bool => in_array($get('role'), [Role::AdminRw->value, Role::AdminRt->value], true))
+                ->schema([
+                    Select::make('provinsi_id')
+                        ->label('1. Provinsi')
+                        ->options(fn (): array => Wilayah::operasional()->where('level', 'provinsi')->orderBy('nama')->pluck('nama', 'id')->all())
+                        ->searchable()
+                        ->preload()
+                        ->live()
+                        ->dehydrated(false)
+                        ->afterStateUpdated(function (Set $set): void {
+                            $set('kabkota_id', null);
+                            $set('kecamatan_id', null);
+                            $set('kelurahan_id', null);
+                            $set('rw_id', null);
+                            $set('rt_id', null);
+                            $set('id_wilayah', null);
+                        }),
 
-                    ->required(fn (Get $get): bool => ! in_array($get('role'), [Role::Superadmin->value, Role::Admin->value], true))
-                    ->visible(fn (Get $get): bool => ! in_array($get('role'), [Role::Superadmin->value, Role::Admin->value], true)),
+                    Select::make('kabkota_id')
+                        ->label('2. Kabupaten/Kota')
+                        ->options(fn (Get $get): array => Wilayah::operasional()->where('level', 'kabupaten_kota')
+                            ->when($get('provinsi_id'), fn (Builder $q, $pid): Builder => $q->where('parent_id', $pid))
+                            ->orderBy('nama')
+                            ->pluck('nama', 'id')
+                            ->all()
+                        )
+                        ->searchable()
+                        ->preload()
+                        ->live()
+                        ->dehydrated(false)
+                        ->disabled(fn (Get $get): bool => blank($get('provinsi_id')))
+                        ->afterStateUpdated(function (Set $set): void {
+                            $set('kecamatan_id', null);
+                            $set('kelurahan_id', null);
+                            $set('rw_id', null);
+                            $set('rt_id', null);
+                            $set('id_wilayah', null);
+                        }),
 
-            ])->columnSpanFull(),
+                    Select::make('kecamatan_id')
+                        ->label('3. Kecamatan')
+                        ->options(fn (Get $get): array => Wilayah::operasional()->where('level', 'kecamatan')
+                            ->when($get('kabkota_id'), fn (Builder $q, $kid): Builder => $q->where('parent_id', $kid))
+                            ->orderBy('nama')
+                            ->pluck('nama', 'id')
+                            ->all()
+                        )
+                        ->searchable()
+                        ->preload()
+                        ->live()
+                        ->dehydrated(false)
+                        ->disabled(fn (Get $get): bool => blank($get('kabkota_id')))
+                        ->afterStateUpdated(function (Set $set): void {
+                            $set('kelurahan_id', null);
+                            $set('rw_id', null);
+                            $set('rt_id', null);
+                            $set('id_wilayah', null);
+                        }),
+
+                    Select::make('kelurahan_id')
+                        ->label('4. Desa/Kelurahan')
+                        ->options(fn (Get $get): array => Wilayah::operasional()->where('level', 'desa')
+                            ->when($get('kecamatan_id'), fn (Builder $q, $kid): Builder => $q->where('parent_id', $kid))
+                            ->orderBy('nama')
+                            ->pluck('nama', 'id')
+                            ->all()
+                        )
+                        ->searchable()
+                        ->preload()
+                        ->live()
+                        ->dehydrated(false)
+                        ->disabled(fn (Get $get): bool => blank($get('kecamatan_id')))
+                        ->afterStateUpdated(function (Set $set): void {
+                            $set('rw_id', null);
+                            $set('rt_id', null);
+                            $set('id_wilayah', null);
+                        }),
+
+                    Select::make('rw_id')
+                        ->label(fn (Get $get): string => $get('role') === Role::AdminRw->value ? '5. RW (Tujuan Penugasan)' : '5. RW')
+                        ->options(function (Get $get): array {
+                            $desaId = $get('kelurahan_id');
+                            if (! $desaId) {
+                                return [];
+                            }
+
+                            $dusunIds = Wilayah::operasional()->where('level', 'dusun')
+                                ->where('parent_id', $desaId)
+                                ->pluck('id')
+                                ->all();
+
+                            return Wilayah::operasional()->where('level', 'rw')
+                                ->where(function (Builder $q) use ($desaId, $dusunIds): void {
+                                    $q->where('parent_id', $desaId);
+                                    if ($dusunIds !== []) {
+                                        $q->orWhereIn('parent_id', $dusunIds);
+                                    }
+                                })
+                                ->with('parent')
+                                ->orderBy('kode')
+                                ->get()
+                                ->mapWithKeys(function (Wilayah $w): array {
+                                    if ($w->parent?->level === 'dusun') {
+                                        $dusunNama = str_starts_with(strtolower($w->parent->nama), 'dusun')
+                                            ? $w->parent->nama
+                                            : "Dusun {$w->parent->nama}";
+
+                                        return [$w->id => "{$w->nama} ({$dusunNama})"];
+                                    }
+
+                                    return [$w->id => "{$w->nama} (RW Langsung)"];
+                                })
+                                ->all();
+                        })
+                        ->searchable()
+                        ->preload()
+                        ->live()
+                        ->dehydrated(false)
+                        ->disabled(fn (Get $get): bool => blank($get('kelurahan_id')))
+                        ->afterStateUpdated(function (?int $state, Set $set, Get $get): void {
+                            if ($get('role') === Role::AdminRw->value) {
+                                $set('id_wilayah', $state);
+                            } else {
+                                $set('rt_id', null);
+                                $set('id_wilayah', null);
+                            }
+                        }),
+
+                    Select::make('rt_id')
+                        ->label('6. RT (Tujuan Penugasan)')
+                        ->options(function (Get $get): array {
+                            $rwId = $get('rw_id');
+                            if (! $rwId) {
+                                return [];
+                            }
+
+                            return Wilayah::operasional()->where('level', 'rt')
+                                ->where('parent_id', $rwId)
+                                ->orderBy('kode')
+                                ->get()
+                                ->mapWithKeys(fn (Wilayah $w): array => [$w->id => "{$w->kode} · {$w->nama}"])
+                                ->all();
+                        })
+                        ->searchable()
+                        ->preload()
+                        ->live()
+                        ->dehydrated(false)
+                        ->visible(fn (Get $get): bool => $get('role') === Role::AdminRt->value)
+                        ->disabled(fn (Get $get): bool => blank($get('rw_id')))
+                        ->afterStateUpdated(function (?int $state, Set $set): void {
+                            $set('id_wilayah', $state);
+                        }),
+
+                    Hidden::make('id_wilayah')
+                        ->default(fn () => request()->integer('id_wilayah') ?: null)
+                        ->dehydrated()
+                        ->afterStateHydrated(function (Hidden $component, ?int $state, Set $set, ?User $record): void {
+                            $targetId = $state ?? $record?->id_wilayah ?? request()->integer('id_wilayah');
+                            if (! $targetId) {
+                                return;
+                            }
+                            $target = Wilayah::with('parent')->find($targetId);
+                            if (! $target) {
+                                return;
+                            }
+                            $ancestors = $target->ancestors()->keyBy('level');
+                            $set('provinsi_id', $ancestors->get('provinsi')?->id);
+                            $set('kabkota_id', $ancestors->get('kabupaten_kota')?->id);
+                            $set('kecamatan_id', $ancestors->get('kecamatan')?->id);
+                            $set('kelurahan_id', $ancestors->get('desa')?->id);
+
+                            if ($target->level === 'rw') {
+                                $set('rw_id', $target->id);
+                                $set('id_wilayah', $target->id);
+                            } elseif ($target->level === 'rt') {
+                                $set('rw_id', $ancestors->get('rw')?->id);
+                                $set('rt_id', $target->id);
+                                $set('id_wilayah', $target->id);
+                            }
+                        }),
+
+                    Placeholder::make('wilayah_preview')
+                        ->label('Status Wilayah Penugasan')
+                        ->content(function (Get $get, ?User $record): HtmlString {
+                            $id = $get('id_wilayah') ?: $record?->id_wilayah;
+                            $role = $get('role') ?: $record?->role?->value;
+
+                            if (! $id) {
+                                $targetLevel = $role === Role::AdminRw->value ? 'RW' : ($role === Role::AdminRt->value ? 'RT' : null);
+                                if (! $targetLevel) {
+                                    return new HtmlString('<span class="text-sm text-gray-500">Pilih peran akun terlebih dahulu.</span>');
+                                }
+
+                                return new HtmlString('<div class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800 flex items-center gap-2">
+                                    <span class="font-semibold">Perhatian:</span> Lengkapi pilihan wilayah di atas secara berurutan hingga tingkat <strong>'.$targetLevel.'</strong> untuk menetapkan penugasan admin.
+                                </div>');
+                            }
+
+                            $w = Wilayah::find($id);
+                            if (! $w) {
+                                return new HtmlString('<span class="text-sm text-gray-500">—</span>');
+                            }
+
+                            $isOperasional = $w->aktifEfektif();
+                            $statusBadge = $isOperasional
+                                ? '<span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">Aktif</span>'
+                                : '<span class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-800">Nonaktif / Down</span>';
+
+                            return new HtmlString('<div class="rounded-xl bg-blue-50/70 border border-blue-200 p-3 text-sm text-blue-950 flex flex-col gap-1">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="inline-flex items-center rounded-lg bg-blue-600 px-2 py-0.5 text-xs font-bold text-white uppercase tracking-wider">'.e(strtoupper($w->level)).'</span>
+                                        <span class="font-bold text-base text-gray-950">'.e($w->nama).'</span>
+                                        '.$statusBadge.'
+                                    </div>
+                                    <span class="font-mono text-xs text-blue-700 font-semibold">Kode: '.e($w->kode).'</span>
+                                </div>
+                                <p class="text-xs text-gray-600 mt-0.5">'.e($w->alamatLengkap()).'</p>
+                            </div>');
+                        })
+                        ->columnSpanFull(),
+                ])
+                ->columns(2)
+                ->columnSpanFull(),
             Profil::admin(),
             Toggle::make('is_active')
                 ->label('Aktif')

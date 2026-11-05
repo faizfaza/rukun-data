@@ -9,6 +9,7 @@ use App\Models\Keluarga;
 use App\Models\User;
 use App\Models\Wilayah;
 use App\Support\SensitiveData;
+use App\Support\WilayahLabels;
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -36,23 +37,22 @@ class JelajahWilayah extends Page implements HasTable
 
     protected static ?string $slug = 'jelajah';
 
-    protected static ?string $title = 'Jelajah Wilayah';
+    protected static ?string $title = 'Kelola Warga';
 
-    protected static ?string $navigationLabel = 'Jelajah Wilayah';
+    protected static ?string $navigationLabel = 'Kelola Warga';
 
     protected static string|\UnitEnum|null $navigationGroup = 'Pendataan';
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-map';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-users';
 
     protected static ?int $navigationSort = 1;
 
-    // Halaman ini dipakai sebagai tab di dalam resource Wilayah, tetapi tetap
-    // menjadi menu mandiri untuk petugas RT yang tidak boleh membuka master.
-    protected static bool $shouldRegisterNavigation = false;
+    // Menu mandiri di bawah Pendataan untuk penjelajahan dan pengelolaan warga per wilayah.
+    protected static bool $shouldRegisterNavigation = true;
 
     public static function shouldRegisterNavigation(): bool
     {
-        return (bool) auth()->user()?->isAdminRt();
+        return true;
     }
 
     protected string $view = 'filament.pages.jelajah-wilayah';
@@ -66,6 +66,9 @@ class JelajahWilayah extends Page implements HasTable
 
     // Kata kunci untuk daftar langkah yang sedang aktif.
     public string $cari = '';
+
+    // Kata kunci pencarian lintas tingkat (semua wilayah di bawah titik awal).
+    public string $cariGlobal = '';
 
     protected ?Wilayah $titikAwalCache = null;
 
@@ -183,6 +186,11 @@ class JelajahWilayah extends Page implements HasTable
                     return KeluargaResource::getUrl('create', array_filter(['id_wilayah' => $rt?->id]));
                 })
                 ->visible(function (): bool {
+                    $rt = $this->nodeTerpilihRt();
+                    if ($rt !== null && ! $rt->aktifEfektif()) {
+                        return false;
+                    }
+
                     $user = auth()->user();
                     if ($user?->isSuperadmin() || $user?->isAdmin()) {
                         return true;
@@ -195,20 +203,28 @@ class JelajahWilayah extends Page implements HasTable
 
     // ---- Aksi pemilih -------------------------------------------------------
 
-    // Memilih satu opsi pada langkah ke-$indeks (indeks langkah aktif).
+    // Memilih satu opsi pada langkah aktif. Klik yang basi (daftar sudah berganti
+    // karena klik ganda atau respons lambat) diabaikan, bukan menghasilkan 404.
     public function pilih(int $indeks, int $id): void
     {
         $langkah = $this->langkahSaatIni();
 
-        abort_if($langkah === null || $langkah['indeks'] !== $indeks, 404);
+        if ($langkah === null) {
+            return;
+        }
 
         $opsi = $this->anakDari($langkah['induk'])->firstWhere('id', $id);
 
-        abort_if($opsi === null, 404);
+        if ($opsi === null) {
+            return;
+        }
 
-        $this->pilihan["p{$indeks}"] = $opsi->id;
-        $this->pangkas($indeks + 1);
+        $indeksAktif = $langkah['indeks'];
+
+        $this->pilihan["p{$indeksAktif}"] = $opsi->id;
+        $this->pangkas($indeksAktif + 1);
         $this->cari = '';
+        $this->cariGlobal = '';
         $this->resetTable();
     }
 
@@ -217,7 +233,67 @@ class JelajahWilayah extends Page implements HasTable
     {
         $this->pangkas($posisi);
         $this->cari = '';
+        $this->cariGlobal = '';
         $this->resetTable();
+    }
+
+    // Lompat langsung ke wilayah mana pun (semua tingkat) dari hasil pencarian.
+    public function lompatKe(int $id): void
+    {
+        $start = $this->titikAwal(auth()->user());
+        $node = Wilayah::find($id);
+
+        if ($node === null || ! $this->diDalamSubtree($node, $start) || $node->is($start)) {
+            Notification::make()->warning()->title('Wilayah tidak ditemukan')->send();
+
+            return;
+        }
+
+        $this->pilihan = $this->pilihanDariNode($node, $start);
+        $this->cacheTangga = null;
+        $this->cacheTanggaKunci = null;
+        $this->cari = '';
+        $this->cariGlobal = '';
+        $this->resetTable();
+    }
+
+    /**
+     * Pencarian lintas tingkat di dalam wilayah yang boleh diakses pengguna
+     * (provinsi sampai RT), dengan rantai induk supaya nama kembar terbedakan.
+     *
+     * @return list<array{id: int, nama: string, level: string, chain: string, status_label: string, status: string}>
+     */
+    public function hasilCariGlobal(): array
+    {
+        $kata = trim($this->cariGlobal);
+
+        if (mb_strlen($kata) < 2) {
+            return [];
+        }
+
+        $start = $this->titikAwal(auth()->user());
+
+        $hasil = Wilayah::query()
+            ->where('path', 'like', $start->path.'%')
+            ->whereKeyNot($start->getKey())
+            ->where(fn (Builder $q): Builder => $q
+                ->where('nama', 'like', '%'.$kata.'%')
+                ->orWhere('kode', 'like', '%'.$kata.'%'))
+            ->orderByRaw('CHAR_LENGTH(path)')
+            ->orderBy('nama')
+            ->limit(30)
+            ->get();
+
+        $detail = WilayahLabels::details($hasil);
+
+        return $hasil->map(fn (Wilayah $w): array => [
+            'id' => $w->id,
+            'nama' => $w->nama,
+            'level' => Wilayah::labelLevel((string) $w->level),
+            'chain' => $detail[$w->id]['chain'] ?? '',
+            'status_label' => $detail[$w->id]['status_label'] ?? '',
+            'status' => $detail[$w->id]['status'] ?? 'active',
+        ])->all();
     }
 
     // ---- Data untuk view ----------------------------------------------------

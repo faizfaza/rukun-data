@@ -41,32 +41,33 @@ class AdminPanelProvider extends PanelProvider
             ->login(Login::class)
             // Inter Variable bawaan Filament dipakai agar tidak ada font eksternal.
             ->viteTheme('resources/css/filament/admin/theme.css')
-            // Sidebar terang ala HRISELINK, topbar dimatikan.
-            ->topbar(false)
-            ->sidebarWidth('16rem')
+            // Sidebar gelap + topbar putih: pemisahan jelas antara navigasi,
+            // konteks halaman, dan area kerja.
+            ->topbar(true)
+            ->sidebarWidth('15rem')
             // Konten memakai seluruh lebar layar, tidak lagi terpusat dengan margin kosong.
             ->maxContentWidth(Width::Full)
             ->darkMode(false)
             ->colors([
-                // Palet Civic Blue modern — tidak monochrome, cerah bersahabat, kontras tinggi.
+                // Palet Civic Teal — satu aksen utama, netral hangat, status ringkas.
                 'primary' => [
-                    50 => '#eff6ff',
-                    100 => '#dbeafe',
-                    200 => '#bfdbfe',
-                    300 => '#93c5fd',
-                    400 => '#60a5fa',
-                    500 => '#3b82f6',
-                    600 => '#2563eb',
-                    700 => '#1d4ed8',
-                    800 => '#1e40af',
-                    900 => '#1e3a8a',
-                    950 => '#172554',
+                    50 => '#f0fdfa',
+                    100 => '#ccfbf1',
+                    200 => '#99f6e4',
+                    300 => '#5eead4',
+                    400 => '#2dd4bf',
+                    500 => '#14b8a6',
+                    600 => '#0f766e',
+                    700 => '#115e59',
+                    800 => '#134e4a',
+                    900 => '#0f2e2b',
+                    950 => '#08201e',
                 ],
-                'gray' => Color::Slate,
-                'info' => Color::Sky,
-                'success' => Color::Emerald,
+                'gray' => Color::Stone,
+                'info' => Color::Cyan,
+                'success' => Color::Green,
                 'warning' => Color::Amber,
-                'danger' => Color::Rose,
+                'danger' => Color::Red,
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')

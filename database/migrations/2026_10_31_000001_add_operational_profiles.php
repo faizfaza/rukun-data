@@ -23,6 +23,13 @@ return new class extends Migration
     {
         Schema::table('anggota', fn (Blueprint $t) => $t->dropColumn('profil'));
         Schema::table('users', fn (Blueprint $t) => $t->dropColumn('identitas'));
+
+        // Indeks is_active ditambahkan migrasi berikutnya; lepaskan lebih dulu
+        // agar rollback tetap sah saat kolomnya dihapus (mis. pada SQLite).
+        if (Schema::hasIndex('wilayah', 'wilayah_is_active_index')) {
+            Schema::table('wilayah', fn (Blueprint $t) => $t->dropIndex(['is_active']));
+        }
+
         Schema::table('wilayah', function (Blueprint $t) {
             $t->dropUnique(['sumber', 'kode_sumber']);
             $t->dropColumn(['is_active', 'sumber', 'kode_sumber', 'versi_sumber']);

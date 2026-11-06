@@ -57,7 +57,7 @@ class KelompokUmurChart extends ChartWidget
             'datasets' => [[
                 'label' => 'Anggota',
                 'data' => $data,
-                'backgroundColor' => ['#2563eb', '#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#6366f1'],
+                'backgroundColor' => ['#0f766e', '#14b8a6', '#5eead4', '#99f6e4', '#cbd6d3'],
             ]],
             'labels' => $labels,
         ];
@@ -85,12 +85,12 @@ class KelompokUmurChart extends ChartWidget
             'scales' => [
                 'x' => [
                     'beginAtZero' => true,
-                    'grid' => ['color' => '#f1f5f9'],
-                    'ticks' => ['color' => '#64748b', 'font' => ['size' => 13, 'weight' => '600'], 'precision' => 0],
+                    'grid' => ['color' => '#eef2f1'],
+                    'ticks' => ['color' => '#5f6f6d', 'font' => ['size' => 12, 'weight' => '600'], 'precision' => 0],
                 ],
                 'y' => [
                     'grid' => ['display' => false],
-                    'ticks' => ['color' => '#334155', 'font' => ['size' => 13, 'weight' => '600']],
+                    'ticks' => ['color' => '#445451', 'font' => ['size' => 12, 'weight' => '600']],
                 ],
             ],
         ];

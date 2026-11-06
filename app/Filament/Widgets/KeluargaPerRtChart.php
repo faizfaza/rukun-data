@@ -68,7 +68,7 @@ class KeluargaPerRtChart extends ChartWidget
             'datasets' => [[
                 'label' => 'Keluarga',
                 'data' => $rows->pluck('total')->all(),
-                'backgroundColor' => ['#2563eb', '#3b82f6', '#0ea5e9', '#06b6d4', '#14b8a6', '#10b981', '#8b5cf6', '#a855f7'],
+                'backgroundColor' => ['#0f766e', '#14b8a6', '#2dd4bf', '#5eead4', '#99f6e4', '#cbd6d3', '#8a9996', '#b8c4c1'],
             ]],
             'labels' => $labels,
         ];
@@ -127,12 +127,12 @@ class KeluargaPerRtChart extends ChartWidget
             'scales' => [
                 'x' => [
                     'beginAtZero' => true,
-                    'grid' => ['color' => '#f1f5f9'],
-                    'ticks' => ['color' => '#64748b', 'font' => ['size' => 13, 'weight' => '600'], 'precision' => 0],
+                    'grid' => ['color' => '#eef2f1'],
+                    'ticks' => ['color' => '#5f6f6d', 'font' => ['size' => 12, 'weight' => '600'], 'precision' => 0],
                 ],
                 'y' => [
                     'grid' => ['display' => false],
-                    'ticks' => ['color' => '#334155', 'font' => ['size' => 13, 'weight' => '600']],
+                    'ticks' => ['color' => '#445451', 'font' => ['size' => 12, 'weight' => '600']],
                 ],
             ],
         ];

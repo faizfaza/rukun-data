@@ -35,7 +35,7 @@ class JenisKelaminChart extends ChartWidget
             'datasets' => [[
                 'label' => 'Anggota',
                 'data' => [(int) ($rows['L'] ?? 0), (int) ($rows['P'] ?? 0)],
-                'backgroundColor' => ['#2563eb', '#ec4899'],
+                'backgroundColor' => ['#0f766e', '#d97706'],
             ]],
             'labels' => ['Laki-laki', 'Perempuan'],
         ];
@@ -59,12 +59,12 @@ class JenisKelaminChart extends ChartWidget
                 'legend' => [
                     'position' => 'bottom',
                     'labels' => [
-                        'color' => '#334155',
+                        'color' => '#445451',
                         'boxWidth' => 10,
                         'boxHeight' => 10,
                         'usePointStyle' => true,
-                        'padding' => 18,
-                        'font' => ['size' => 13, 'weight' => '600'],
+                        'padding' => 16,
+                        'font' => ['size' => 12, 'weight' => '600'],
                     ],
                 ],
             ],

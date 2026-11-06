@@ -59,7 +59,7 @@
                         </div>
                         <a
                             href="{{ \App\Filament\Pages\JelajahWilayah::getUrl(['wilayah' => $rt->id]) }}"
-                            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition"
+                            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 transition"
                             title="Buka data warga di Kelola Warga"
                         >
                             <x-filament::icon icon="heroicon-m-arrow-top-right-on-square" class="h-3.5 w-3.5" />
@@ -132,7 +132,7 @@
                                             <span class="text-gray-300">·</span>
                                             <a
                                                 href="{{ \App\Filament\Resources\KeluargaResource::getUrl('edit', ['record' => $k->id]) }}"
-                                                class="rd-quiet-link text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                                                class="rd-quiet-link text-xs font-semibold text-teal-600 hover:text-teal-800"
                                             >
                                                 Ubah
                                             </a>
@@ -148,7 +148,7 @@
                                             @if ($rt->aktifEfektif() && (auth()->user()?->isSuperadmin() || auth()->user()?->isAdmin() || auth()->user()?->isAdminRw() || auth()->user()?->isAdminRt()))
                                                 <a
                                                     href="{{ \App\Filament\Resources\KeluargaResource::getUrl('create', ['id_wilayah' => $rt->id]) }}"
-                                                    class="mt-1 text-xs font-semibold text-indigo-600 hover:underline"
+                                                    class="mt-1 text-xs font-semibold text-teal-600 hover:underline"
                                                 >
                                                     + Tambah keluarga sekarang
                                                 </a>
@@ -186,12 +186,12 @@
                         <button
                             type="button"
                             @click="openFilterModal = true"
-                            class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border {{ $this->jumlahFilterAktif > 0 ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50' }} text-xs font-semibold shadow-sm transition"
+                            class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border {{ $this->jumlahFilterAktif > 0 ? 'border-teal-300 bg-teal-50 text-teal-700' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50' }} text-xs font-semibold shadow-sm transition"
                         >
-                            <x-filament::icon icon="heroicon-m-funnel" class="h-4 w-4 {{ $this->jumlahFilterAktif > 0 ? 'text-indigo-600' : 'text-gray-500' }}" />
+                            <x-filament::icon icon="heroicon-m-funnel" class="h-4 w-4 {{ $this->jumlahFilterAktif > 0 ? 'text-teal-600' : 'text-gray-500' }}" />
                             <span>Filter</span>
                             @if ($this->jumlahFilterAktif > 0)
-                                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white shadow-sm">
+                                <span class="flex h-5 w-5 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm">
                                     {{ $this->jumlahFilterAktif }}
                                 </span>
                             @endif
@@ -216,9 +216,9 @@
                             <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400 mr-1">Filter Aktif:</span>
 
                             @if (filled($levelFilter))
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">
                                     <span>Level: <strong>{{ \App\Models\Wilayah::labelLevel($levelFilter) }}</strong></span>
-                                    <button type="button" wire:click="hapusFilterLevel" class="text-indigo-400 hover:text-indigo-700">
+                                    <button type="button" wire:click="hapusFilterLevel" class="text-teal-400 hover:text-teal-700">
                                         <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
                                     </button>
                                 </span>
@@ -234,54 +234,54 @@
                             @endif
 
                             @if ($filterProvinsi && $this->namaProvinsiTerpilih)
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">
                                     <span>Provinsi: <strong>{{ $this->namaProvinsiTerpilih }}</strong></span>
-                                    <button type="button" wire:click="hapusFilterProvinsi" class="text-blue-400 hover:text-blue-700">
+                                    <button type="button" wire:click="hapusFilterProvinsi" class="text-teal-400 hover:text-teal-700">
                                         <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
                                     </button>
                                 </span>
                             @endif
 
                             @if ($filterKabkota && $this->namaKabkotaTerpilih)
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">
                                     <span>Kab/Kota: <strong>{{ $this->namaKabkotaTerpilih }}</strong></span>
-                                    <button type="button" wire:click="hapusFilterKabkota" class="text-blue-400 hover:text-blue-700">
+                                    <button type="button" wire:click="hapusFilterKabkota" class="text-teal-400 hover:text-teal-700">
                                         <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
                                     </button>
                                 </span>
                             @endif
 
                             @if ($filterKecamatan && $this->namaKecamatanTerpilih)
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">
                                     <span>Kecamatan: <strong>{{ $this->namaKecamatanTerpilih }}</strong></span>
-                                    <button type="button" wire:click="hapusFilterKecamatan" class="text-blue-400 hover:text-blue-700">
+                                    <button type="button" wire:click="hapusFilterKecamatan" class="text-teal-400 hover:text-teal-700">
                                         <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
                                     </button>
                                 </span>
                             @endif
 
                             @if ($this->namaDesaTerpilih)
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">
                                     <span>Desa: <strong>{{ $this->namaDesaTerpilih }}</strong></span>
-                                    <button type="button" wire:click="hapusFilterDesa" class="text-blue-400 hover:text-blue-700">
+                                    <button type="button" wire:click="hapusFilterDesa" class="text-teal-400 hover:text-teal-700">
                                         <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
                                     </button>
                                 </span>
                             @endif
 
                             @if ($this->namaRwTerpilih)
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">
                                     <span>RW: <strong>{{ $this->namaRwTerpilih }}</strong></span>
-                                    <button type="button" wire:click="hapusFilterRw" class="text-blue-400 hover:text-blue-700">
+                                    <button type="button" wire:click="hapusFilterRw" class="text-teal-400 hover:text-teal-700">
                                         <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
                                     </button>
                                 </span>
                             @endif
 
                             @if ($this->namaRtTerpilih)
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">
                                     <span>RT: <strong>{{ $this->namaRtTerpilih }}</strong></span>
-                                    <button type="button" wire:click="hapusFilterRt" class="text-blue-400 hover:text-blue-700">
+                                    <button type="button" wire:click="hapusFilterRt" class="text-teal-400 hover:text-teal-700">
                                         <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
                                     </button>
                                 </span>
@@ -336,7 +336,7 @@
                                     <!-- Modal Header -->
                                     <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-white shrink-0">
                                         <div class="flex items-center gap-3">
-                                            <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                                            <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
                                                 <x-filament::icon icon="heroicon-o-funnel" class="h-5 w-5" />
                                             </div>
                                             <div>
@@ -379,10 +379,10 @@
                                         </div>
 
                                         <!-- Filter Wilayah Fleksibel (Input Ketik + Datalist) -->
-                                        <div class="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
+                                        <div class="rounded-xl border border-teal-100 bg-teal-50/40 p-4">
                                             <div class="flex items-center justify-between gap-2 mb-2">
                                                 <div class="flex items-center gap-2">
-                                                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">
+                                                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white">
                                                         <x-filament::icon icon="heroicon-m-map-pin" class="h-3 w-3" />
                                                     </span>
                                                     <span class="text-xs font-bold text-gray-900 uppercase tracking-wider">Filter Wilayah & RT / RW</span>
@@ -391,7 +391,7 @@
                                                     <button
                                                         type="button"
                                                         wire:click="resetGranularFilters"
-                                                        class="text-xs font-semibold text-indigo-700 hover:text-indigo-900 hover:underline"
+                                                        class="text-xs font-semibold text-teal-700 hover:text-teal-900 hover:underline"
                                                     >
                                                         Kosongkan Wilayah
                                                     </button>
@@ -514,7 +514,7 @@
                                         <button
                                             type="button"
                                             @click="openFilterModal = false"
-                                            class="fi-btn fi-btn-size-sm inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition"
+                                            class="fi-btn fi-btn-size-sm inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-sm transition"
                                         >
                                             <x-filament::icon icon="heroicon-m-check" class="h-4 w-4" />
                                             <span>Terapkan Filter</span>

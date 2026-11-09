@@ -53,6 +53,10 @@ class CreateKeluarga extends CreateRecord
             }
         }
 
+        if (empty($data['alamat_ktp']) && ! empty($data['alamat'])) {
+            $data['alamat_ktp'] = $data['alamat'];
+        }
+
         // Data repeater relasi tidak ikut getState(); dibaca dari raw state.
         $raw = $this->form->getRawState();
 

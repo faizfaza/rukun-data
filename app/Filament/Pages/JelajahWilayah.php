@@ -15,6 +15,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Panel;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -136,12 +137,31 @@ class JelajahWilayah extends Page implements HasTable
                     ->icon('heroicon-m-lock-closed')
                     ->iconColor('gray')
                     ->getStateUsing(fn (Keluarga $record): ?string => $record->no_kk_masked),
+                IconColumn::make('is_locked')
+                    ->label('Kunci')
+                    ->boolean()
+                    ->trueIcon('heroicon-s-lock-closed')
+                    ->falseIcon('heroicon-o-lock-open')
+                    ->trueColor('danger')
+                    ->falseColor('gray')
+                    ->tooltip(fn (Keluarga $record): string => $record->isLocked() ? 'Data terkunci (Hanya Superadmin)' : 'Data terbuka'),
+                TextColumn::make('kepala.nama_lengkap')
+                    ->label('Kepala Keluarga'),
                 TextColumn::make('anggota_count')
                     ->label('Anggota aktif')
                     ->counts('anggota')
                     ->alignCenter(),
                 TextColumn::make('kode_pos')
                     ->label('Kode pos'),
+            ])
+            ->actions([
+                Action::make('cetak')
+                    ->icon('heroicon-o-printer')
+                    ->iconButton()
+                    ->tooltip('Cetak Kartu Keluarga')
+                    ->color('info')
+                    ->url(fn (Keluarga $record): string => route('keluarga.cetak', $record))
+                    ->openUrlInNewTab(),
             ])
             ->recordUrl(fn (Keluarga $record): string => KeluargaResource::getUrl('view', ['record' => $record]))
             ->paginated([25, 50, 100])
@@ -623,12 +643,19 @@ class JelajahWilayah extends Page implements HasTable
         }
 
         $keluarga = Keluarga::where('id_wilayah', $rt->id)->count();
-        $anggota = Anggota::whereIn(
-            'id_keluarga',
-            Keluarga::where('id_wilayah', $rt->id)->select('id'),
-        )->count();
+        $keluargaIds = Keluarga::where('id_wilayah', $rt->id)->pluck('id');
 
-        return $keluarga.' keluarga, '.$anggota.' anggota aktif.';
+        $anggotaMenetap = Anggota::whereIn('id_keluarga', $keluargaIds)
+            ->where(fn ($q) => $q->where('status_kependudukan', 'menetap')->orWhereNull('status_kependudukan'))
+            ->count();
+
+        $anggotaPindah = Anggota::whereIn('id_keluarga', $keluargaIds)
+            ->where('status_kependudukan', 'pindah')
+            ->count();
+
+        $anggotaTotal = Anggota::whereIn('id_keluarga', $keluargaIds)->count();
+
+        return "{$keluarga} keluarga | {$anggotaMenetap} warga aktif (menetap), {$anggotaPindah} pindah (total: {$anggotaTotal} jiwa)";
     }
 
     public function labelUntuk(Wilayah $wilayah): string

@@ -29,13 +29,26 @@ class KeluargaPolicy
 
     public function update(User $user, Keluarga $keluarga): bool
     {
+        if ($keluarga->isLocked() && ! $user->isSuperadmin()) {
+            return false;
+        }
+
         return ($user->isSuperadmin() || $user->isAdmin() || $user->isAdminRw() || $user->isAdminRt())
             && $this->inWilayah($user, $keluarga->id_wilayah);
     }
 
     public function delete(User $user, Keluarga $keluarga): bool
     {
+        if ($keluarga->isLocked() && ! $user->isSuperadmin()) {
+            return false;
+        }
+
         return $this->update($user, $keluarga);
+    }
+
+    public function lock(User $user, Keluarga $keluarga): bool
+    {
+        return $user->isSuperadmin();
     }
 
     public function restore(User $user, Keluarga $keluarga): bool

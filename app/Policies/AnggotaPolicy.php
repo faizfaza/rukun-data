@@ -27,12 +27,20 @@ class AnggotaPolicy
 
     public function update(User $user, Anggota $anggota): bool
     {
+        if ($anggota->keluarga?->isLocked() && ! $user->isSuperadmin()) {
+            return false;
+        }
+
         return ($user->isSuperadmin() || $user->isAdmin() || $user->isAdminRw() || $user->isAdminRt())
             && $this->inWilayah($user, $anggota->keluarga->id_wilayah);
     }
 
     public function delete(User $user, Anggota $anggota): bool
     {
+        if ($anggota->keluarga?->isLocked() && ! $user->isSuperadmin()) {
+            return false;
+        }
+
         return $this->update($user, $anggota);
     }
 

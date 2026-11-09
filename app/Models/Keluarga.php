@@ -19,9 +19,9 @@ class Keluarga extends Model
 
     protected $table = 'keluarga';
 
-    protected $fillable = ['id_wilayah', 'no_kk', 'alamat', 'kode_pos', 'created_by'];
+    protected $fillable = ['id_wilayah', 'no_kk', 'alamat', 'alamat_ktp', 'kode_pos', 'is_locked', 'created_by'];
 
-    protected $hidden = ['no_kk', 'alamat'];
+    protected $hidden = ['no_kk', 'alamat', 'alamat_ktp'];
 
     protected static function booted(): void
     {
@@ -54,6 +54,27 @@ class Keluarga extends Model
         return SensitiveData::decrypt($value);
     }
 
+    public function setAlamatKtpAttribute(?string $value): void
+    {
+        $this->attributes['alamat_ktp'] = ($value !== null && $value !== '')
+            ? SensitiveData::encrypt($value)
+            : null;
+    }
+
+    public function getAlamatKtpAttribute(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return $this->alamat;
+        }
+
+        return SensitiveData::decrypt($value);
+    }
+
+    public function isLocked(): bool
+    {
+        return (bool) ($this->is_locked ?? false);
+    }
+
     // Pencarian persis via hash (PRD F7), termasuk baris soft-deleted agar
     // input ulang dapat menawarkan pemulihan (§8a), bukan duplikat baru.
     public static function findByNoKk(string $noKk): ?self
@@ -84,6 +105,11 @@ class Keluarga extends Model
     public function ekonomi(): HasMany
     {
         return $this->hasMany(EkonomiKeluarga::class, 'id_keluarga');
+    }
+
+    public function aset(): HasMany
+    {
+        return $this->hasMany(AsetKeluarga::class, 'id_keluarga');
     }
 
     public function creator(): BelongsTo

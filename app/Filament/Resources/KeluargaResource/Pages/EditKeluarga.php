@@ -16,6 +16,7 @@ class EditKeluarga extends EditRecord
     {
         $data['no_kk'] = $this->record->no_kk;
         $data['alamat'] = $this->record->alamat;
+        $data['alamat_ktp'] = $this->record->alamat_ktp ?? $this->record->alamat;
 
         return $data;
     }
@@ -30,6 +31,10 @@ class EditKeluarga extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
+        if (empty($data['alamat_ktp']) && ! empty($data['alamat'])) {
+            $data['alamat_ktp'] = $data['alamat'];
+        }
+
         $kepala = 0;
 
         foreach ($this->form->getRawState()['anggota'] ?? [] as $row) {

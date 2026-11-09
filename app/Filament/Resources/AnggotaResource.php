@@ -75,6 +75,14 @@ class AnggotaResource extends Resource
                     ->label('Jenis kelamin')
                     ->options(['L' => 'Laki-laki', 'P' => 'Perempuan'])
                     ->required(),
+                Select::make('status_kependudukan')
+                    ->label('Status kependudukan')
+                    ->options([
+                        'menetap' => 'Menetap (Aktif)',
+                        'pindah' => 'Pindah',
+                        'meninggal' => 'Meninggal Dunia',
+                    ])
+                    ->default('menetap'),
                 Select::make('status_kawin')->live()
                     ->label('Status kawin')
                     ->options([
@@ -128,6 +136,19 @@ class AnggotaResource extends Resource
                     ->icon('heroicon-m-lock-closed')
                     ->iconColor('gray')
                     ->getStateUsing(fn (Anggota $record): ?string => $record->nik_masked),
+                TextColumn::make('status_kependudukan')
+                    ->label('Status')
+                    ->badge()
+                    ->color(fn (?string $state): string => match ($state) {
+                        'pindah' => 'warning',
+                        'meninggal' => 'danger',
+                        default => 'success',
+                    })
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'pindah' => 'Pindah',
+                        'meninggal' => 'Meninggal',
+                        default => 'Menetap',
+                    }),
                 TextColumn::make('hubungan.nama')
                     ->label('Hubungan'),
                 TextColumn::make('pendidikan.nama')
@@ -161,7 +182,14 @@ class AnggotaResource extends Resource
                     )),
                 TrashedFilter::make(),
             ])
-            ->actions([ViewAction::make(), EditAction::make(), DeleteAction::make(), RestoreAction::make()])
+            ->actions([
+                ViewAction::make(),
+                EditAction::make()
+                    ->disabled(fn (Anggota $record): bool => (bool) $record->keluarga?->isLocked() && ! (bool) auth()->user()?->isSuperadmin()),
+                DeleteAction::make()
+                    ->disabled(fn (Anggota $record): bool => (bool) $record->keluarga?->isLocked() && ! (bool) auth()->user()?->isSuperadmin()),
+                RestoreAction::make(),
+            ])
             ->bulkActions([DeleteBulkAction::make()]);
     }
 

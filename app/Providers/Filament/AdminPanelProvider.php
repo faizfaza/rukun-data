@@ -96,6 +96,10 @@ class AdminPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
             ])
             ->renderHook(
+                PanelsRenderHook::TOPBAR_END,
+                fn () => view('filament.hooks.mobile-view-pill'),
+            )
+            ->renderHook(
                 PanelsRenderHook::BODY_END,
                 fn () => view('filament.hooks.filter-badge-zero'),
             )

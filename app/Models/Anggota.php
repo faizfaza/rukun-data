@@ -19,7 +19,7 @@ class Anggota extends Model
     protected $fillable = [
         'profil',
         'id_keluarga', 'nik', 'nama_lengkap', 'tempat_lahir', 'tanggal_lahir',
-        'jenis_kelamin', 'status_kawin', 'id_agama', 'id_pendidikan',
+        'jenis_kelamin', 'status_kawin', 'status_kependudukan', 'id_agama', 'id_pendidikan',
         'id_pekerjaan', 'id_hubungan', 'nama_ayah', 'nama_ibu', 'penghasilan_bulanan',
         'created_by',
     ];
@@ -36,6 +36,10 @@ class Anggota extends Model
         static::addGlobalScope(new WilayahScope);
 
         static::saving(function (Anggota $anggota) {
+            if (empty($anggota->status_kependudukan)) {
+                $anggota->status_kependudukan = 'menetap';
+            }
+
             $anggota->kepala_lock = (int) $anggota->id_hubungan === RefHubungan::KEPALA
                 ? $anggota->id_keluarga
                 : null;

@@ -70,6 +70,17 @@
                 </span>
                 <span class="rd-chip rd-chip-active">{{ $namaNode }}</span>
 
+                @if (in_array($nodeAktif->level, ['rt', 'rw'], true))
+                    <a
+                        href="{{ route('wilayah.cetak-warga', $nodeAktif) }}"
+                        target="_blank"
+                        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 shadow-sm transition"
+                    >
+                        <x-filament::icon icon="heroicon-m-printer" class="h-3.5 w-3.5 text-gray-500" />
+                        <span>Cetak Rekap {{ strtoupper($nodeAktif->level) }}</span>
+                    </a>
+                @endif
+
                 @if ($user?->isSuperadmin() || $user?->isAdmin())
                     <span class="rd-chip ml-auto">
                         <x-filament::icon icon="heroicon-m-globe-alt" class="h-3.5 w-3.5" />
@@ -629,15 +640,26 @@
                 </x-slot>
 
                 <x-slot name="headerEnd">
-                    @if ($this->bolehTambahKeluarga())
-                        <x-filament::button
-                            :href="\App\Filament\Resources\KeluargaResource::getUrl('create', ['id_wilayah' => $rt->id])"
-                            icon="heroicon-m-plus"
-                            size="sm"
+                    <div class="flex items-center gap-2">
+                        <a
+                            href="{{ route('wilayah.cetak-warga', $rt) }}"
+                            target="_blank"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 shadow-sm transition"
                         >
-                            Tambah keluarga
-                        </x-filament::button>
-                    @endif
+                            <x-filament::icon icon="heroicon-m-printer" class="h-4 w-4 text-gray-500" />
+                            <span>Cetak Rekap Warga</span>
+                        </a>
+
+                        @if ($this->bolehTambahKeluarga())
+                            <x-filament::button
+                                :href="\App\Filament\Resources\KeluargaResource::getUrl('create', ['id_wilayah' => $rt->id])"
+                                icon="heroicon-m-plus"
+                                size="sm"
+                            >
+                                Tambah keluarga
+                            </x-filament::button>
+                        @endif
+                    </div>
                 </x-slot>
 
                 <x-slot name="description">

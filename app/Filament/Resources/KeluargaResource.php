@@ -13,22 +13,26 @@ use App\Models\RefPendidikan;
 use App\Models\Wilayah;
 use App\Support\SensitiveData;
 use App\Support\WilayahAccess;
+use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\TrashedFilter;
@@ -276,14 +280,43 @@ class KeluargaResource extends Resource
                         ->length(5)
                         ->rule('regex:/^[0-9]{5}$/'),
                     Textarea::make('alamat')
-                        ->label('Alamat')
+                        ->label('Alamat Domisili')
+                        ->helperText('Alamat domisili / tempat tinggal keluarga saat ini.')
                         ->required()
                         ->maxLength(500)
+                        ->live(onBlur: true)
+                        ->afterStateUpdated(function (Get $get, Set $set, ?string $state): void {
+                            if ($get('ktp_sama_domisili')) {
+                                $set('alamat_ktp', $state);
+                            }
+                        })
                         ->formatStateUsing(fn (?string $state, ?Keluarga $record = null): ?string => $state ?? $record?->alamat)
+                        ->columnSpanFull(),
+                    Checkbox::make('ktp_sama_domisili')
+                        ->label('Alamat KTP sama dengan domisili')
+                        ->default(true)
+                        ->live()
+                        ->dehydrated(false)
+                        ->afterStateHydrated(function (Checkbox $component, ?Keluarga $record, Set $set): void {
+                            if ($record) {
+                                $set('ktp_sama_domisili', empty($record->alamat_ktp) || $record->alamat_ktp === $record->alamat);
+                            }
+                        })
+                        ->afterStateUpdated(function (Get $get, Set $set, bool $state): void {
+                            if ($state) {
+                                $set('alamat_ktp', $get('alamat'));
+                            }
+                        })
+                        ->columnSpanFull(),
+                    Textarea::make('alamat_ktp')
+                        ->label('Alamat KTP')
+                        ->helperText('Alamat sesuai Kartu Tanda Penduduk.')
+                        ->maxLength(500)
+                        ->formatStateUsing(fn (?string $state, ?Keluarga $record = null): ?string => $state ?? $record?->alamat_ktp)
                         ->columnSpanFull(),
                 ])->columns(2),
 
-                Section::make('Data Ekonomi')->schema([
+                Section::make('Data Ekonomi & Fasilitas')->schema([
                     Repeater::make('ekonomi')
                         ->relationship()
                         ->mutateRelationshipDataBeforeFillUsing(function (array $data, ?Keluarga $record): array {
@@ -294,7 +327,7 @@ class KeluargaResource extends Resource
 
                             return $data;
                         })
-                        ->label('')
+                        ->label('Kategori Ekonomi')
                         ->maxItems(1)
                         ->defaultItems(0)
                         ->addActionLabel('Tambah data ekonomi')
@@ -317,6 +350,32 @@ class KeluargaResource extends Resource
                                 ])
                                 ->required(),
                         ]),
+                    Repeater::make('aset')
+                        ->relationship('aset')
+                        ->label('Aset & Fasilitas Keluarga (Opsional)')
+                        ->defaultItems(0)
+                        ->addActionLabel('Tambah Aset / Fasilitas')
+                        ->columns(2)
+                        ->schema([
+                            Select::make('jenis_aset')
+                                ->label('Jenis Aset / Fasilitas')
+                                ->options([
+                                    'Internet / WiFi' => 'Internet / WiFi',
+                                    'PDAM / Air Bersih' => 'PDAM / Air Bersih',
+                                    'Listrik PLN' => 'Listrik PLN',
+                                    'Sepeda Motor' => 'Sepeda Motor',
+                                    'Mobil' => 'Mobil',
+                                    'Smartphone / Komputer' => 'Smartphone / Komputer',
+                                    'Rumah Pribadi' => 'Rumah Pribadi',
+                                    'Tanah / Lahan' => 'Tanah / Lahan',
+                                    'Lainnya' => 'Lainnya',
+                                ])
+                                ->required(),
+                            TextInput::make('keterangan')
+                                ->label('Keterangan')
+                                ->placeholder('Contoh: Indihome 50Mbps, 1 Vario')
+                                ->maxLength(255),
+                        ]),
                 ])->collapsible(),
             ])->columnSpanFull(),
 
@@ -332,6 +391,7 @@ class KeluargaResource extends Resource
                             $data['nama_ibu'] = $item->nama_ibu;
                             $data['penghasilan_bulanan'] = $item->penghasilan_bulanan;
                             $data['profil'] = $item->profil;
+                            $data['status_kependudukan'] = $item->status_kependudukan ?? 'menetap';
                         }
 
                         return $data;
@@ -343,7 +403,7 @@ class KeluargaResource extends Resource
                     // DESIGN.md §7.3.2: kartu anggota bisa dibuka/tutup dan kartu
                     // pertama otomatis berhubungan "Kepala keluarga".
                     ->collapsible()
-                    ->default(fn (): array => [['id_hubungan' => RefHubungan::KEPALA]])
+                    ->default(fn (): array => [['id_hubungan' => RefHubungan::KEPALA, 'status_kependudukan' => 'menetap']])
                     ->columns(3)
                     ->schema([
                         TextInput::make('nik')
@@ -357,6 +417,14 @@ class KeluargaResource extends Resource
                             ->required()
                             ->maxLength(100)
                             ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nama_lengkap),
+                        Select::make('status_kependudukan')
+                            ->label('Status Kependudukan')
+                            ->options([
+                                'menetap' => 'Menetap (Aktif)',
+                                'pindah' => 'Pindah',
+                                'meninggal' => 'Meninggal Dunia',
+                            ])
+                            ->default('menetap'),
                         TextInput::make('tempat_lahir')
                             ->label('Tempat lahir')
                             ->required()
@@ -425,6 +493,14 @@ class KeluargaResource extends Resource
                     ->icon('heroicon-m-lock-closed')
                     ->iconColor('gray')
                     ->getStateUsing(fn (Keluarga $record): ?string => $record->no_kk_masked),
+                IconColumn::make('is_locked')
+                    ->label('Kunci')
+                    ->boolean()
+                    ->trueIcon('heroicon-s-lock-closed')
+                    ->falseIcon('heroicon-o-lock-open')
+                    ->trueColor('danger')
+                    ->falseColor('gray')
+                    ->tooltip(fn (Keluarga $record): string => $record->isLocked() ? 'Data terkunci (Hanya Superadmin yang dapat mengubah)' : 'Data terbuka'),
                 TextColumn::make('kepala.nama_lengkap')
                     ->label('Kepala keluarga'),
                 TextColumn::make('wilayah.nama')
@@ -474,8 +550,40 @@ class KeluargaResource extends Resource
             ])
             ->actions([
                 ViewAction::make()->iconButton()->tooltip('Lihat'),
-                EditAction::make()->iconButton()->tooltip('Ubah'),
-                DeleteAction::make()->iconButton()->tooltip('Hapus'),
+                Action::make('cetak')
+                    ->icon('heroicon-o-printer')
+                    ->iconButton()
+                    ->tooltip('Cetak Kartu Keluarga')
+                    ->color('info')
+                    ->url(fn (Keluarga $record): string => route('keluarga.cetak', $record))
+                    ->openUrlInNewTab(),
+                Action::make('toggle_lock')
+                    ->icon(fn (Keluarga $record): string => $record->isLocked() ? 'heroicon-o-lock-open' : 'heroicon-s-lock-closed')
+                    ->iconButton()
+                    ->tooltip(fn (Keluarga $record): string => $record->isLocked() ? 'Buka Kunci' : 'Kunci Data')
+                    ->color(fn (Keluarga $record): string => $record->isLocked() ? 'warning' : 'danger')
+                    ->visible(fn (): bool => (bool) auth()->user()?->isSuperadmin())
+                    ->requiresConfirmation()
+                    ->modalHeading(fn (Keluarga $record): string => $record->isLocked() ? 'Buka Kunci Data Keluarga' : 'Kunci Data Keluarga')
+                    ->modalDescription(fn (Keluarga $record): string => $record->isLocked()
+                        ? 'Data keluarga ini akan dibuka kuncinya agar admin RT/RW dapat mengedit kembali.'
+                        : 'Data keluarga ini akan dikunci. Hanya Superadmin yang dapat mengubah atau menghapus data ini.'
+                    )
+                    ->action(function (Keluarga $record): void {
+                        $record->update(['is_locked' => ! $record->is_locked]);
+                        Notification::make()
+                            ->title($record->is_locked ? 'Data keluarga berhasil dikunci' : 'Kunci data keluarga berhasil dibuka')
+                            ->success()
+                            ->send();
+                    }),
+                EditAction::make()
+                    ->iconButton()
+                    ->tooltip('Ubah')
+                    ->disabled(fn (Keluarga $record): bool => $record->isLocked() && ! (bool) auth()->user()?->isSuperadmin()),
+                DeleteAction::make()
+                    ->iconButton()
+                    ->tooltip('Hapus (Arsipkan)')
+                    ->disabled(fn (Keluarga $record): bool => $record->isLocked() && ! (bool) auth()->user()?->isSuperadmin()),
                 RestoreAction::make()->iconButton()->tooltip('Pulihkan'),
             ])
             ->bulkActions([DeleteBulkAction::make()]);

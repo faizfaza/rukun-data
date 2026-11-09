@@ -6,10 +6,12 @@ use App\Filament\Resources\KeluargaResource;
 use App\Filament\Schemas\Profil;
 use App\Models\Anggota;
 use App\Models\Keluarga;
+use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -40,7 +42,16 @@ class ViewKeluarga extends ViewRecord
                             ? $record->wilayah->alamatLengkap()
                             : '—'
                         ),
-                    TextEntry::make('alamat')->label('Alamat')->columnSpanFull(),
+                    TextEntry::make('is_locked')
+                        ->label('Status Data')
+                        ->badge()
+                        ->color(fn (Keluarga $record): string => $record->isLocked() ? 'danger' : 'success')
+                        ->formatStateUsing(fn (Keluarga $record): string => $record->isLocked() ? 'Terkunci (Hanya Superadmin)' : 'Terbuka'),
+                    TextEntry::make('alamat')->label('Alamat Domisili')->columnSpanFull(),
+                    TextEntry::make('alamat_ktp')
+                        ->label('Alamat KTP')
+                        ->formatStateUsing(fn (?string $state, Keluarga $record): string => $record->alamat_ktp ?: ($record->alamat ?: '—'))
+                        ->columnSpanFull(),
                     TextEntry::make('kode_pos')->label('Kode pos'),
                 ])->columns(3),
 
@@ -57,6 +68,19 @@ class ViewKeluarga extends ViewRecord
                                     ? $state
                                     : $record->nik_masked),
                             TextEntry::make('nama_lengkap')->label('Nama'),
+                            TextEntry::make('status_kependudukan')
+                                ->label('Status')
+                                ->badge()
+                                ->color(fn (?string $state): string => match ($state) {
+                                    'pindah' => 'warning',
+                                    'meninggal' => 'danger',
+                                    default => 'success',
+                                })
+                                ->formatStateUsing(fn (?string $state): string => match ($state) {
+                                    'pindah' => 'Pindah',
+                                    'meninggal' => 'Meninggal',
+                                    default => 'Menetap (Aktif)',
+                                }),
                             TextEntry::make('hubungan.nama')->label('Hubungan'),
                             TextEntry::make('jenis_kelamin')->label('L/P'),
                             TextEntry::make('tanggal_lahir')->label('Lahir')->date('d M Y'),
@@ -76,11 +100,50 @@ class ViewKeluarga extends ViewRecord
                     ])
                     ->columns(2),
             ])->collapsible(),
+
+            Section::make('Aset & Fasilitas (Opsional)')->schema([
+                RepeatableEntry::make('aset')
+                    ->label('')
+                    ->schema([
+                        TextEntry::make('jenis_aset')->label('Jenis Aset / Fasilitas'),
+                        TextEntry::make('keterangan')->label('Keterangan')->placeholder('—'),
+                    ])
+                    ->columns(2),
+            ])->collapsible(),
         ]);
     }
 
     protected function getHeaderActions(): array
     {
-        return [EditAction::make(), DeleteAction::make()];
+        return [
+            Action::make('cetak')
+                ->label('Cetak Kartu Keluarga')
+                ->icon('heroicon-o-printer')
+                ->color('info')
+                ->url(fn (): string => route('keluarga.cetak', $this->record))
+                ->openUrlInNewTab(),
+            Action::make('toggle_lock')
+                ->label(fn (): string => $this->record->isLocked() ? 'Buka Kunci' : 'Kunci Data')
+                ->icon(fn (): string => $this->record->isLocked() ? 'heroicon-o-lock-open' : 'heroicon-s-lock-closed')
+                ->color(fn (): string => $this->record->isLocked() ? 'warning' : 'danger')
+                ->visible(fn (): bool => (bool) auth()->user()?->isSuperadmin())
+                ->requiresConfirmation()
+                ->modalHeading(fn (): string => $this->record->isLocked() ? 'Buka Kunci Data Keluarga' : 'Kunci Data Keluarga')
+                ->modalDescription(fn (): string => $this->record->isLocked()
+                    ? 'Data keluarga ini akan dibuka kuncinya agar admin RT/RW dapat mengedit kembali.'
+                    : 'Data keluarga ini akan dikunci. Hanya Superadmin yang dapat mengubah atau menghapus data ini.'
+                )
+                ->action(function (): void {
+                    $this->record->update(['is_locked' => ! $this->record->is_locked]);
+                    Notification::make()
+                        ->title($this->record->is_locked ? 'Data keluarga berhasil dikunci' : 'Kunci data keluarga berhasil dibuka')
+                        ->success()
+                        ->send();
+                }),
+            EditAction::make()
+                ->disabled(fn (): bool => $this->record->isLocked() && ! (bool) auth()->user()?->isSuperadmin()),
+            DeleteAction::make()
+                ->disabled(fn (): bool => $this->record->isLocked() && ! (bool) auth()->user()?->isSuperadmin()),
+        ];
     }
 }

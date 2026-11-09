@@ -1110,3 +1110,14 @@ html.fi {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* Mobile View-Only Mode (Notulensi Pak Sutiyo: fungsi mobile hanya bisa melihat saja) */
+@media (max-width: 768px) {
+    .fi-form-actions,
+    .fi-ac-edit-action,
+    .fi-ac-delete-action,
+    .fi-ta-header-actions .fi-btn-color-primary {
+        display: none !important;
+    }
+}
+

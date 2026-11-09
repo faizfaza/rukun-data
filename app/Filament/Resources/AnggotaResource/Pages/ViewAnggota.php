@@ -32,6 +32,19 @@ class ViewAnggota extends ViewRecord
                             ? $state
                             : $record->nik_masked),
                     TextEntry::make('nama_lengkap')->label('Nama lengkap'),
+                    TextEntry::make('status_kependudukan')
+                        ->label('Status Kependudukan')
+                        ->badge()
+                        ->color(fn (?string $state): string => match ($state) {
+                            'pindah' => 'warning',
+                            'meninggal' => 'danger',
+                            default => 'success',
+                        })
+                        ->formatStateUsing(fn (?string $state): string => match ($state) {
+                            'pindah' => 'Pindah',
+                            'meninggal' => 'Meninggal Dunia',
+                            default => 'Menetap (Aktif)',
+                        }),
                     TextEntry::make('tempat_lahir')->label('Tempat lahir'),
                     TextEntry::make('tanggal_lahir')->label('Tanggal lahir')->date('d M Y'),
                     TextEntry::make('jenis_kelamin')->label('Jenis kelamin'),
@@ -62,6 +75,11 @@ class ViewAnggota extends ViewRecord
 
     protected function getHeaderActions(): array
     {
-        return [EditAction::make(), DeleteAction::make()];
+        return [
+            EditAction::make()
+                ->disabled(fn (): bool => (bool) $this->record->keluarga?->isLocked() && ! (bool) auth()->user()?->isSuperadmin()),
+            DeleteAction::make()
+                ->disabled(fn (): bool => (bool) $this->record->keluarga?->isLocked() && ! (bool) auth()->user()?->isSuperadmin()),
+        ];
     }
 }

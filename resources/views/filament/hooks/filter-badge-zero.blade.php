@@ -20,9 +20,13 @@
             });
         };
 
+        // Mode SPA (wire:navigate) mengganti elemen <body>, jadi observer dipasang
+        // pada <html> yang tetap ada, dan sinkron ulang setiap selesai navigasi.
+        document.addEventListener('livewire:navigated', sync);
+
         const start = () => {
             sync();
-            new MutationObserver(sync).observe(document.body, {
+            new MutationObserver(sync).observe(document.documentElement, {
                 childList: true,
                 subtree: true,
                 characterData: true,

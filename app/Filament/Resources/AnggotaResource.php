@@ -108,7 +108,6 @@ class AnggotaResource extends Resource
                     ->label('Hubungan')
                     ->options(RefHubungan::pluck('nama', 'id'))
                     ->required(),
-                ...Profil::anggota(),
                 TextInput::make('nama_ayah')
                     ->label('Nama ayah')
                     ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nama_ayah),
@@ -120,6 +119,7 @@ class AnggotaResource extends Resource
                     ->numeric()
                     ->minValue(0)
                     ->formatStateUsing(fn ($state, ?Anggota $record = null) => $state ?? $record?->penghasilan_bulanan),
+                ...Profil::anggota(),
             ])->columns(3),
         ]);
     }

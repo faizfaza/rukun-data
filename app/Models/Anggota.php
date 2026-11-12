@@ -43,11 +43,32 @@ class Anggota extends Model
             $anggota->kepala_lock = (int) $anggota->id_hubungan === RefHubungan::KEPALA
                 ? $anggota->id_keluarga
                 : null;
+
+            if ($anggota->exists && $anggota->isDirty('profil')) {
+                $rawOld = $anggota->getRawOriginal('profil');
+                $oldProfil = null;
+                if (is_string($rawOld) && $rawOld !== '') {
+                    try {
+                        $oldProfil = json_decode(\Illuminate\Support\Facades\Crypt::decryptString($rawOld), true);
+                    } catch (\Throwable) {
+                        $oldProfil = null;
+                    }
+                }
+                $cleanOld = is_array($oldProfil) ? array_filter($oldProfil, fn ($v) => $v !== null && $v !== '') : [];
+                $cleanNew = is_array($anggota->profil) ? array_filter($anggota->profil, fn ($v) => $v !== null && $v !== '') : [];
+                if ($cleanOld == $cleanNew) {
+                    $anggota->setRawAttributes(array_merge($anggota->getAttributes(), ['profil' => $rawOld]));
+                }
+            }
         });
     }
 
     public function setNikAttribute(string $value): void
     {
+        if ($this->exists && isset($this->attributes['nik']) && $this->nik === $value) {
+            return;
+        }
+
         $this->attributes['nik'] = SensitiveData::encrypt($value);
         $this->attributes['nik_hash'] = SensitiveData::hash(SensitiveData::digits($value));
     }
@@ -64,6 +85,10 @@ class Anggota extends Model
 
     public function setNamaLengkapAttribute(string $value): void
     {
+        if ($this->exists && isset($this->attributes['nama_lengkap']) && $this->nama_lengkap === $value) {
+            return;
+        }
+
         $this->attributes['nama_lengkap'] = SensitiveData::encrypt($value);
         // Indeks butir untuk pencarian nama (pendamping nik_hash).
         $this->attributes['nama_tokens'] = implode(' ', SensitiveData::nameTokens($value));
@@ -76,7 +101,12 @@ class Anggota extends Model
 
     public function setNamaAyahAttribute(?string $value): void
     {
-        $this->attributes['nama_ayah'] = $value === null ? null : SensitiveData::encrypt($value);
+        $normalized = ($value !== null && $value !== '') ? $value : null;
+        if ($this->exists && array_key_exists('nama_ayah', $this->attributes) && $this->nama_ayah === $normalized) {
+            return;
+        }
+
+        $this->attributes['nama_ayah'] = $normalized === null ? null : SensitiveData::encrypt($normalized);
     }
 
     public function getNamaAyahAttribute(?string $value): ?string
@@ -86,7 +116,12 @@ class Anggota extends Model
 
     public function setNamaIbuAttribute(?string $value): void
     {
-        $this->attributes['nama_ibu'] = $value === null ? null : SensitiveData::encrypt($value);
+        $normalized = ($value !== null && $value !== '') ? $value : null;
+        if ($this->exists && array_key_exists('nama_ibu', $this->attributes) && $this->nama_ibu === $normalized) {
+            return;
+        }
+
+        $this->attributes['nama_ibu'] = $normalized === null ? null : SensitiveData::encrypt($normalized);
     }
 
     public function getNamaIbuAttribute(?string $value): ?string
@@ -96,9 +131,14 @@ class Anggota extends Model
 
     public function setPenghasilanBulananAttribute($value): void
     {
-        $this->attributes['penghasilan_bulanan'] = $value === null || $value === ''
+        $normalized = ($value === null || $value === '') ? null : (string) $value;
+        if ($this->exists && array_key_exists('penghasilan_bulanan', $this->attributes) && $this->penghasilan_bulanan === $normalized) {
+            return;
+        }
+
+        $this->attributes['penghasilan_bulanan'] = $normalized === null
             ? null
-            : SensitiveData::encrypt((string) $value);
+            : SensitiveData::encrypt($normalized);
     }
 
     public function getPenghasilanBulananAttribute(?string $value): ?string

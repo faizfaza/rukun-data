@@ -42,7 +42,15 @@ final class Profil
                 }
                 $fields[] = $field->label(self::FIELDS[$key])->nullable();
             }
-            $sections[] = Section::make($title)->schema($fields)->columns(2)->collapsible()->columnSpanFull();
+            $sections[] = Section::make($title)
+                ->description('Data tambahan (opsional) — klik untuk membuka atau menutup.')
+                ->schema($fields)
+                ->columns(2)
+                ->collapsible()
+                ->collapsed($title === 'Pencatatan perkawinan'
+                    ? fn (Get $get): bool => $get('status_kawin') !== 'cerai_hidup'
+                    : true)
+                ->columnSpanFull();
         }
 
         return $sections;
@@ -50,7 +58,17 @@ final class Profil
 
     public static function detail(): array
     {
-        return [Section::make('Profil tambahan')->schema(array_map(fn ($key) => TextEntry::make('profil.'.$key)->label(self::FIELDS[$key])->placeholder('—'), array_keys(self::FIELDS)))->columns(3)->collapsible()];
+        return [
+            Section::make('Profil tambahan')
+                ->schema(array_map(
+                    fn ($key) => TextEntry::make('profil.'.$key)->label(self::FIELDS[$key])->placeholder('—'),
+                    array_keys(self::FIELDS),
+                ))
+                ->columns(3)
+                ->collapsible()
+                ->collapsed()
+                ->columnSpanFull(),
+        ];
     }
 
     public static function admin(): Section

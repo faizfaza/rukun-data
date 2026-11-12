@@ -11,6 +11,9 @@ use App\Models\Wilayah;
 use App\Support\SensitiveData;
 use App\Support\WilayahLabels;
 use Filament\Actions\Action;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\RestoreAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -19,6 +22,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
@@ -151,10 +155,27 @@ class JelajahWilayah extends Page implements HasTable
                     ->label('Anggota aktif')
                     ->counts('anggota')
                     ->alignCenter(),
+                TextColumn::make('anggota_trashed_count')
+                    ->label('Arsip Anggota')
+                    ->counts('anggotaTrashed')
+                    ->badge()
+                    ->color(fn (int $state): string => $state > 0 ? 'warning' : 'gray')
+                    ->alignCenter(),
                 TextColumn::make('kode_pos')
                     ->label('Kode pos'),
             ])
+            ->filters([
+                \Filament\Tables\Filters\Filter::make('punya_arsip_anggota')
+                    ->label('Memiliki Anggota di Arsip (Terhapus)')
+                    ->query(fn (Builder $query): Builder => $query->whereHas('anggotaTrashed')),
+                TrashedFilter::make()
+                    ->label('Arsip KK (Terhapus)'),
+            ])
             ->actions([
+                ViewAction::make()
+                    ->iconButton()
+                    ->tooltip('Lihat Detail KK')
+                    ->url(fn (Keluarga $record): string => KeluargaResource::getUrl('view', ['record' => $record])),
                 Action::make('cetak')
                     ->icon('heroicon-o-printer')
                     ->iconButton()
@@ -162,6 +183,13 @@ class JelajahWilayah extends Page implements HasTable
                     ->color('info')
                     ->url(fn (Keluarga $record): string => route('keluarga.cetak', $record))
                     ->openUrlInNewTab(),
+                DeleteAction::make()
+                    ->iconButton()
+                    ->tooltip('Arsipkan (Hapus) KK')
+                    ->disabled(fn (Keluarga $record): bool => $record->isLocked() && ! (bool) auth()->user()?->isSuperadmin()),
+                RestoreAction::make()
+                    ->iconButton()
+                    ->tooltip('Pulihkan KK dari Arsip'),
             ])
             ->recordUrl(fn (Keluarga $record): string => KeluargaResource::getUrl('view', ['record' => $record]))
             ->paginated([25, 50, 100])
@@ -189,6 +217,14 @@ class JelajahWilayah extends Page implements HasTable
     public function aksiHeader(): array
     {
         return [
+            Action::make('daftarArsipKk')
+                ->label('Daftar & Arsip KK')
+                ->icon('heroicon-o-archive-box')
+                ->color('gray')
+                ->outlined()
+                ->button()
+                ->url(fn (): string => KeluargaResource::getUrl('index')),
+
             Action::make('cari')
                 ->label('Cari No KK / NIK')
                 ->icon('heroicon-o-magnifying-glass')
@@ -531,6 +567,144 @@ class JelajahWilayah extends Page implements HasTable
             $anak = $anak->filter(fn (Wilayah $w): bool => (bool) $w->is_active && ! (bool) $w->aktifEfektif());
         }
 
+        if (filled($this->filterProvinsi)) {
+            $provIds = $this->cariWilayahIds('provinsi', $this->filterProvinsi);
+            if (! empty($provIds)) {
+                $anak = $anak->filter(function (Wilayah $w) use ($provIds): bool {
+                    if (in_array($w->id, $provIds, true)) {
+                        return true;
+                    }
+                    foreach ($provIds as $id) {
+                        if (str_contains((string) $w->path, '/'.$id.'/')) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                });
+            }
+        }
+
+        if (filled($this->filterKabkota)) {
+            $kabIds = $this->cariWilayahIds('kabupaten_kota', $this->filterKabkota);
+            if (! empty($kabIds)) {
+                $kabModels = Wilayah::whereIn('id', $kabIds)->get();
+                $anak = $anak->filter(function (Wilayah $w) use ($kabIds, $kabModels): bool {
+                    if (in_array($w->id, $kabIds, true)) {
+                        return true;
+                    }
+                    foreach ($kabIds as $id) {
+                        if (str_contains((string) $w->path, '/'.$id.'/')) {
+                            return true;
+                        }
+                    }
+                    foreach ($kabModels as $km) {
+                        if (str_contains((string) $km->path, '/'.$w->id.'/')) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                });
+            }
+        }
+
+        if (filled($this->filterKecamatan)) {
+            $kecIds = $this->cariWilayahIds('kecamatan', $this->filterKecamatan);
+            if (! empty($kecIds)) {
+                $kecModels = Wilayah::whereIn('id', $kecIds)->get();
+                $anak = $anak->filter(function (Wilayah $w) use ($kecIds, $kecModels): bool {
+                    if (in_array($w->id, $kecIds, true)) {
+                        return true;
+                    }
+                    foreach ($kecIds as $id) {
+                        if (str_contains((string) $w->path, '/'.$id.'/')) {
+                            return true;
+                        }
+                    }
+                    foreach ($kecModels as $km) {
+                        if (str_contains((string) $km->path, '/'.$w->id.'/')) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                });
+            }
+        }
+
+        if (filled($this->filterDesa)) {
+            $desaIds = $this->cariWilayahIds('desa', $this->filterDesa);
+            if (! empty($desaIds)) {
+                $desaModels = Wilayah::whereIn('id', $desaIds)->get();
+                $anak = $anak->filter(function (Wilayah $w) use ($desaIds, $desaModels): bool {
+                    if (in_array($w->id, $desaIds, true)) {
+                        return true;
+                    }
+                    foreach ($desaIds as $id) {
+                        if (str_contains((string) $w->path, '/'.$id.'/')) {
+                            return true;
+                        }
+                    }
+                    foreach ($desaModels as $dm) {
+                        if (str_contains((string) $dm->path, '/'.$w->id.'/')) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                });
+            }
+        }
+
+        if (filled($this->filterRw)) {
+            $rwIds = $this->cariWilayahIds('rw', $this->filterRw);
+            if (! empty($rwIds)) {
+                $rwModels = Wilayah::whereIn('id', $rwIds)->get();
+                $anak = $anak->filter(function (Wilayah $w) use ($rwIds, $rwModels): bool {
+                    if (in_array($w->id, $rwIds, true)) {
+                        return true;
+                    }
+                    foreach ($rwIds as $id) {
+                        if (str_contains((string) $w->path, '/'.$id.'/')) {
+                            return true;
+                        }
+                    }
+                    foreach ($rwModels as $rm) {
+                        if (str_contains((string) $rm->path, '/'.$w->id.'/')) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                });
+            }
+        }
+
+        if (filled($this->filterRt)) {
+            $rtIds = $this->cariWilayahIds('rt', $this->filterRt);
+            if (! empty($rtIds)) {
+                $rtModels = Wilayah::whereIn('id', $rtIds)->get();
+                $anak = $anak->filter(function (Wilayah $w) use ($rtIds, $rtModels): bool {
+                    if (in_array($w->id, $rtIds, true)) {
+                        return true;
+                    }
+                    foreach ($rtIds as $id) {
+                        if (str_contains((string) $w->path, '/'.$id.'/')) {
+                            return true;
+                        }
+                    }
+                    foreach ($rtModels as $rm) {
+                        if (str_contains((string) $rm->path, '/'.$w->id.'/')) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                });
+            }
+        }
+
         return $anak
             ->when($kata !== '', fn (Collection $list): Collection => $list->filter(
                 fn (Wilayah $w): bool => str_contains(mb_strtolower($w->nama.' '.$w->kode), $kata),
@@ -868,7 +1042,7 @@ class JelajahWilayah extends Page implements HasTable
 
     public function updatedFilterDesa(mixed $value = null): void
     {
-        if (is_numeric($value) && (int) $value > 0 && Wilayah::where('id', (int) $value)->where('level', 'desa')->exists()) {
+        if (is_numeric($value) && (int) $value > 0 && Wilayah::where('id', (int) $value)->whereIn('level', ['desa', 'dusun'])->exists()) {
             $this->lompatKe((int) $value);
         }
         $this->cacheHitungan = null;

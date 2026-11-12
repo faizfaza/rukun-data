@@ -381,20 +381,103 @@ html.fi {
 }
 
 .fi-section {
-    border-top: 0 !important;
+    border: 1.5px solid var(--rd-line-strong) !important;
     overflow: hidden;
 }
 
 .fi-section-header {
-    border-bottom: 1px solid var(--rd-line);
+    background-color: #f8faf9;
+    border-bottom: 1.5px solid var(--rd-line);
     padding: 0.9rem 1.15rem;
 }
 
 .fi-section-header-heading {
     color: var(--rd-ink);
-    font-size: 0.95rem;
-    font-weight: 600;
+    font-size: 1rem;
+    font-weight: 700;
     letter-spacing: -0.01em;
+}
+
+/* ------------------------------------------- Repeater & Nested Sections */
+
+.fi-fo-repeater,
+.fi-in-repeatable {
+    width: 100% !important;
+}
+
+.fi-fo-repeater-items,
+.fi-in-repeatable > ul,
+.fi-in-repeatable {
+    align-items: stretch !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1.5rem !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+}
+
+.fi-fo-repeater-item,
+.fi-in-repeatable-item {
+    background-color: #ffffff !important;
+    border: 2px solid #94a3b8 !important;
+    border-left: 6px solid var(--rd-primary) !important;
+    border-radius: var(--rd-radius-xl) !important;
+    box-shadow: 0 4px 12px rgb(15 23 42 / 0.07) !important;
+    box-sizing: border-box !important;
+    overflow: hidden;
+    width: 100% !important;
+}
+
+.fi-in-repeatable-item {
+    padding: 1.25rem !important;
+}
+
+.fi-fo-repeater-item-header {
+    background-color: #f0fdfa !important;
+    border-bottom: 1.5px solid #99f6e4 !important;
+    padding: 0.85rem 1.15rem !important;
+}
+
+.fi-fo-repeater-item-header-label {
+    color: #0f766e !important;
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.01em;
+}
+
+.fi-fo-repeater-item-content {
+    border-top: 0 !important;
+    padding: 1.25rem 1.25rem !important;
+}
+
+/* Sub-section di dalam kartu anggota (Pendidikan berjalan, Perkawinan, Administrasi, Profil tambahan) */
+.fi-fo-repeater-item .fi-section,
+.fi-in-repeatable-item .fi-section {
+    background-color: #f8fafc !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-left: 4px solid #64748b !important;
+    border-radius: var(--rd-radius-lg) !important;
+    box-shadow: none !important;
+    margin-top: 0.35rem;
+}
+
+.fi-fo-repeater-item .fi-section-header,
+.fi-in-repeatable-item .fi-section-header {
+    background-color: #f1f5f9 !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+    padding: 0.7rem 1rem !important;
+}
+
+.fi-fo-repeater-item .fi-section.fi-collapsed .fi-section-header,
+.fi-in-repeatable-item .fi-section.fi-collapsed .fi-section-header {
+    border-bottom: 0 !important;
+}
+
+.fi-fo-repeater-item .fi-section-header-heading,
+.fi-in-repeatable-item .fi-section-header-heading {
+    color: #1e293b !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
 }
 
 .fi-section-header-description {

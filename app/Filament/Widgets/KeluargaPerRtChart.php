@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Widgets\Concerns\MemoizesDetailItems;
 use App\Models\Keluarga;
 use App\Models\Wilayah;
 use App\Support\WilayahScope;
@@ -12,6 +13,8 @@ use Illuminate\Contracts\Support\Htmlable;
 // Membantu petugas desa melihat RT mana datanya paling tertinggal.
 class KeluargaPerRtChart extends ChartWidget
 {
+    use MemoizesDetailItems;
+
     protected static ?int $sort = 3;
 
     protected static bool $isLazy = false;
@@ -20,13 +23,25 @@ class KeluargaPerRtChart extends ChartWidget
 
     protected ?string $heading = 'Keluarga per RT';
 
-    protected function getType(): string
+    protected string $view = 'filament.widgets.interactive-chart';
+
+    public function getDetailType(): string
     {
-        return 'bar';
+        return 'keluarga_per_rt';
     }
 
-    protected function getData(): array
+    public function getDetailUnit(): string
     {
+        return 'keluarga';
+    }
+
+    /**
+     * @return list<array{key: string, label: string, count: int, color: string}>
+     */
+    protected function hitungDetailItems(): array
+    {
+        $palette = ['#0f766e', '#14b8a6', '#2dd4bf', '#5eead4', '#99f6e4', '#cbd6d3', '#8a9996', '#b8c4c1'];
+
         $rows = Keluarga::query()
             ->selectRaw('keluarga.id_wilayah, COUNT(*) as total')
             ->join('wilayah', 'wilayah.id', '=', 'keluarga.id_wilayah')
@@ -45,7 +60,7 @@ class KeluargaPerRtChart extends ChartWidget
             $wilayah = $wilayahs->get($row->id_wilayah);
 
             if ($wilayah === null) {
-                return ['label' => 'Wilayah #'.$row->id_wilayah, 'kode' => '', 'id' => $row->id_wilayah];
+                return ['label' => 'Wilayah #'.$row->id_wilayah, 'kode' => '', 'id' => (int) $row->id_wilayah, 'count' => (int) $row->total];
             }
 
             $chain = $wilayah->ancestors()
@@ -59,18 +74,41 @@ class KeluargaPerRtChart extends ChartWidget
                 'label' => $wilayah->nama.($chain !== '' ? ' · '.$chain : ''),
                 'kode' => $wilayah->kode,
                 'id' => $wilayah->id,
+                'count' => (int) $row->total,
             ];
         })->all();
 
         $labels = $this->uniqueLabels($items);
 
+        $result = [];
+        foreach ($items as $i => $item) {
+            $result[] = [
+                'key' => (string) $item['id'],
+                'label' => $labels[$i] ?? $item['label'],
+                'count' => $item['count'],
+                'color' => $palette[$i % count($palette)],
+            ];
+        }
+
+        return $result;
+    }
+
+    protected function getType(): string
+    {
+        return 'bar';
+    }
+
+    protected function getData(): array
+    {
+        $items = $this->getDetailItems();
+
         return [
             'datasets' => [[
                 'label' => 'Keluarga',
-                'data' => $rows->pluck('total')->all(),
+                'data' => array_column($items, 'count'),
                 'backgroundColor' => ['#0f766e', '#14b8a6', '#2dd4bf', '#5eead4', '#99f6e4', '#cbd6d3', '#8a9996', '#b8c4c1'],
             ]],
-            'labels' => $labels,
+            'labels' => array_column($items, 'label'),
         ];
     }
 
@@ -78,7 +116,7 @@ class KeluargaPerRtChart extends ChartWidget
      * Keep labels short when possible, but append the unique code when two
      * regions share the same short name/chain.
      *
-     * @param  list<array{label: string, kode: string, id: int}>  $items
+     * @param  list<array{label: string, kode: string, id: int, count?: int}>  $items
      * @return list<string>
      */
     protected function uniqueLabels(array $items): array

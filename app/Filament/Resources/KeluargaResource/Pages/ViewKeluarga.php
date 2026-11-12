@@ -11,8 +11,10 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ViewEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
@@ -53,13 +55,37 @@ class ViewKeluarga extends ViewRecord
                         ->formatStateUsing(fn (?string $state, Keluarga $record): string => $record->alamat_ktp ?: ($record->alamat ?: '—'))
                         ->columnSpanFull(),
                     TextEntry::make('kode_pos')->label('Kode pos'),
-                ])->columns(3),
+                ])->columns(3)->columnSpanFull(),
+
+            // Ekonomi & aset pendek: berdampingan tepat di bawah Data Keluarga,
+            // supaya tidak ada ruang kosong di samping daftar anggota yang panjang.
+            Grid::make(2)->schema([
+                Section::make('Ekonomi')->schema([
+                    RepeatableEntry::make('ekonomi')
+                        ->hiddenLabel()
+                        ->schema([
+                            TextEntry::make('tahun_data')->label('Tahun'),
+                            TextEntry::make('kategori_ekonomi')->label('Kategori'),
+                        ])
+                        ->columns(2),
+                ])->collapsible(),
+
+                Section::make('Aset & Fasilitas (Opsional)')->schema([
+                    RepeatableEntry::make('aset')
+                        ->hiddenLabel()
+                        ->schema([
+                            TextEntry::make('jenis_aset')->label('Jenis Aset / Fasilitas'),
+                            TextEntry::make('keterangan')->label('Keterangan')->placeholder('—'),
+                        ])
+                        ->columns(2),
+                ])->collapsible(),
+            ])->columnSpanFull(),
 
             Section::make('Anggota')
                 ->description('Untuk menghapus satu anggota, buka Ubah lalu gunakan ikon tempat sampah pada kartu anggota, kemudian Simpan keluarga.')
                 ->schema([
                     RepeatableEntry::make('anggota')
-                        ->label('')
+                        ->hiddenLabel()
                         ->schema([
                             TextEntry::make('nik')
                                 ->label('NIK')
@@ -89,33 +115,76 @@ class ViewKeluarga extends ViewRecord
                             ...Profil::detail(),
                         ])
                         ->columns(4),
-                ]),
+                ])->columnSpanFull(),
 
-            Section::make('Ekonomi')->schema([
-                RepeatableEntry::make('ekonomi')
-                    ->label('')
-                    ->schema([
-                        TextEntry::make('tahun_data')->label('Tahun'),
-                        TextEntry::make('kategori_ekonomi')->label('Kategori'),
-                    ])
-                    ->columns(2),
-            ])->collapsible(),
+            Section::make('Arsip Anggota Keluarga (Pernah Dihapus / Keluar dari KK)')
+                ->description('Anggota yang pernah dihapus dari KK ini (misal pecah KK, cerai, atau pindah KK). Bisa dipulihkan lewat tombol Pulihkan Anggota Terhapus di kanan atas.')
+                ->schema([
+                    RepeatableEntry::make('anggotaTrashed')
+                        ->hiddenLabel()
+                        ->schema([
+                            TextEntry::make('nik')
+                                ->label('NIK')
+                                ->icon(fn (): ?string => auth()->user()?->bolehLihatDataPenuh() ? null : 'heroicon-m-lock-closed')
+                                ->formatStateUsing(fn (?string $state, Anggota $record): ?string => auth()->user()?->bolehLihatDataPenuh()
+                                    ? $state
+                                    : $record->nik_masked),
+                            TextEntry::make('nama_lengkap')->label('Nama'),
+                            TextEntry::make('hubungan.nama')->label('Hubungan Terakhir'),
+                            TextEntry::make('status_kawin')
+                                ->label('Status Kawin')
+                                ->formatStateUsing(fn (?string $state): string => match ($state) {
+                                    'belum_kawin' => 'Belum kawin',
+                                    'kawin' => 'Kawin',
+                                    'cerai_hidup' => 'Cerai hidup',
+                                    'cerai_mati' => 'Cerai mati',
+                                    default => $state ?? '—',
+                                }),
+                            TextEntry::make('deleted_at')
+                                ->label('Diarsipkan Pada')
+                                ->badge()
+                                ->color('warning')
+                                ->dateTime('d M Y H:i'),
+                        ])
+                        ->columns(5),
+                ])
+                ->collapsible()
+                ->columnSpanFull()
+                ->visible(fn (Keluarga $record): bool => $record->anggota()->onlyTrashed()->exists()),
 
-            Section::make('Aset & Fasilitas (Opsional)')->schema([
-                RepeatableEntry::make('aset')
-                    ->label('')
-                    ->schema([
-                        TextEntry::make('jenis_aset')->label('Jenis Aset / Fasilitas'),
-                        TextEntry::make('keterangan')->label('Keterangan')->placeholder('—'),
-                    ])
-                    ->columns(2),
-            ])->collapsible(),
-        ]);
+            Section::make('Riwayat & Log Aktivitas Keluarga')
+                ->description('Catatan riwayat perubahan data keluarga, status kependudukan, penambahan, dan penghapusan anggota.')
+                ->icon('heroicon-o-clipboard-document-list')
+                ->schema([
+                    ViewEntry::make('riwayat_aktivitas')
+                        ->hiddenLabel()
+                        ->view('filament.infolists.keluarga-activity-log'),
+                ])
+                ->collapsible()
+                ->columnSpanFull(),
+        ])
+            ->columns(1);
     }
 
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('pulihkan_anggota')
+                ->label('Pulihkan Anggota Terhapus')
+                ->icon('heroicon-o-arrow-uturn-left')
+                ->color('warning')
+                ->visible(fn (): bool => $this->record->anggota()->onlyTrashed()->exists()
+                    && (! $this->record->isLocked() || (bool) auth()->user()?->isSuperadmin()))
+                ->requiresConfirmation()
+                ->modalHeading('Pulihkan Anggota dari Arsip')
+                ->modalDescription('Seluruh anggota yang diarsipkan (terhapus) pada Kartu Keluarga ini akan dikembalikan menjadi anggota aktif di KK ini.')
+                ->action(function (): void {
+                    $dipulihkan = $this->record->anggota()->onlyTrashed()->restore();
+                    Notification::make()
+                        ->title("{$dipulihkan} anggota berhasil dipulihkan ke KK ini")
+                        ->success()
+                        ->send();
+                }),
             Action::make('cetak')
                 ->label('Cetak Kartu Keluarga')
                 ->icon('heroicon-o-printer')

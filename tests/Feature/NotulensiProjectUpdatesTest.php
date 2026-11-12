@@ -111,6 +111,7 @@ class NotulensiProjectUpdatesTest extends TestCase
     {
         $w = $this->seedDasar();
         $superadmin = $this->makeUser('superadmin', 'superadmin', null);
+        $admin = $this->makeUser('admin', 'admin', null);
         $rw = $this->makeUser('admin-rw', 'admin_rw', $w['rw']->id);
         $rt1 = $this->makeUser('admin-rt1', 'admin_rt', $w['rt1']->id);
         $rt2 = $this->makeUser('admin-rt2', 'admin_rt', $w['rt2']->id);
@@ -120,6 +121,7 @@ class NotulensiProjectUpdatesTest extends TestCase
         AuditLog::create(['id_pengguna' => $rt1->id, 'aksi' => 'created', 'nama_tabel' => 'keluarga', 'id_record' => 1]);
         AuditLog::create(['id_pengguna' => $rt2->id, 'aksi' => 'created', 'nama_tabel' => 'keluarga', 'id_record' => 2]);
         AuditLog::create(['id_pengguna' => $rw->id, 'aksi' => 'updated', 'nama_tabel' => 'wilayah', 'id_record' => $w['rw']->id]);
+        AuditLog::create(['id_pengguna' => $admin->id, 'aksi' => 'login', 'nama_tabel' => 'users', 'id_record' => $admin->id]);
         AuditLog::create(['id_pengguna' => $superadmin->id, 'aksi' => 'created', 'nama_tabel' => 'users', 'id_record' => 99]);
 
         // RT1 sees only own logs (1)
@@ -130,9 +132,33 @@ class NotulensiProjectUpdatesTest extends TestCase
         $this->actingAs($rw);
         $this->assertSame(3, AuditLogResource::getEloquentQuery()->count());
 
-        // Superadmin sees all logs (4)
-        $this->actingAs($superadmin);
+        // Admin sees all logs EXCEPT superadmin's logs (4)
+        $this->actingAs($admin);
         $this->assertSame(4, AuditLogResource::getEloquentQuery()->count());
+        $this->assertFalse(
+            AuditLogResource::getEloquentQuery()->where('id_pengguna', $superadmin->id)->exists()
+        );
+
+        // Superadmin sees all logs (5)
+        $this->actingAs($superadmin);
+        $this->assertSame(5, AuditLogResource::getEloquentQuery()->count());
+    }
+
+    public function test_login_mencatat_audit_log(): void
+    {
+        $w = $this->seedDasar();
+        $rt1 = $this->makeUser('admin-rt-login', 'admin_rt', $w['rt1']->id);
+
+        AuditLog::query()->delete();
+
+        event(new \Illuminate\Auth\Events\Login('web', $rt1, false));
+
+        $this->assertDatabaseHas('audit_log', [
+            'id_pengguna' => $rt1->id,
+            'aksi' => 'login',
+            'nama_tabel' => 'users',
+            'id_record' => $rt1->id,
+        ]);
     }
 
     public function test_cetak_keluarga_and_rekap_routes(): void
@@ -160,5 +186,60 @@ class NotulensiProjectUpdatesTest extends TestCase
         $resRekapRw = $this->get(route('wilayah.cetak-warga', $w['rw']));
         $resRekapRw->assertOk();
         $resRekapRw->assertSee('REKAPITULASI DATA PENDUDUK');
+    }
+
+    public function test_dashboard_ringkasan_dan_grafik_detail_interaktif(): void
+    {
+        $w = $this->seedDasar();
+        $superadmin = $this->makeUser('superadmin', 'superadmin', null);
+        $rt1User = $this->makeUser('rt1-user', 'admin_rt', $w['rt1']->id);
+
+        $this->actingAs($superadmin);
+
+        $k1 = $this->makeKeluarga($w['rt1']->id, '1234567890123456', [
+            ['nik' => '1234567890123401', 'hubungan' => 1],
+            ['nik' => '1234567890123402', 'hubungan' => 2],
+        ], $superadmin->id);
+        $k1Anggota = $k1->anggota()->orderBy('id')->get();
+        $k1Anggota[0]->update(['nama_lengkap' => 'Budi Santoso', 'jenis_kelamin' => 'L', 'id_pendidikan' => 2, 'id_pekerjaan' => 2]);
+        $k1Anggota[1]->update(['nama_lengkap' => 'Siti Aminah', 'jenis_kelamin' => 'P', 'id_pendidikan' => 3, 'id_pekerjaan' => 3]);
+
+        $k2 = $this->makeKeluarga($w['rt2']->id, '6543210987654321', [
+            ['nik' => '6543210987654301', 'hubungan' => 1],
+        ], $superadmin->id);
+        $k2->anggota()->first()->update(['nama_lengkap' => 'Ratna Sari', 'jenis_kelamin' => 'P', 'id_pendidikan' => 3, 'id_pekerjaan' => 3]);
+
+        $comp = \Livewire\Livewire::test(\App\Filament\Widgets\RingkasanWidget::class);
+
+        // 1. Klik kartu Total Keluarga
+        $comp->call('bukaDetail', 'ringkasan', 'keluarga')
+            ->assertSee('Daftar Total Keluarga')
+            ->assertSee('Budi Santoso')
+            ->assertSee('Siti Aminah')
+            ->assertSee('Ratna Sari')
+            ->assertSee('/admin/keluarga/'.$k1->id);
+
+        // 2. Klik Komposisi Jenis Kelamin -> Perempuan
+        $comp->call('bukaDetail', 'jenis_kelamin', 'P')
+            ->assertSee('Komposisi Jenis Kelamin · Perempuan')
+            ->assertSee('Siti Aminah')
+            ->assertSee('Budi Santoso')
+            ->assertSee('Ratna Sari')
+            ->assertSee('/admin/keluarga/'.$k1->id)
+            ->assertSee('/admin/keluarga/'.$k2->id);
+
+        // 3. Klik Sebaran Pendidikan -> id_pendidikan = 3 (Sarjana)
+        $comp->call('bukaDetail', 'pendidikan', '3')
+            ->assertSee('Sebaran Pendidikan · Sarjana')
+            ->assertSee('Siti Aminah')
+            ->assertSee('Budi Santoso')
+            ->assertSee('Ratna Sari');
+
+        // 4. Scope Admin RT1 hanya menampilkan keluarga/warga di RT1
+        $this->actingAs($rt1User);
+        \Livewire\Livewire::test(\App\Filament\Widgets\RingkasanWidget::class)
+            ->call('bukaDetail', 'jenis_kelamin', 'P')
+            ->assertSee('Siti Aminah')
+            ->assertDontSee('Ratna Sari');
     }
 }

@@ -39,6 +39,13 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogo(fn () => view('filament.brand'))
             ->brandLogoHeight('2rem')
             ->login(Login::class)
+            // Mode SPA: pindah menu hanya menukar konten (wire:navigate) tanpa
+            // memuat ulang CSS/JS. Halaman cetak tetap dibuka sebagai halaman penuh.
+            ->spa(hasPrefetching: true)
+            ->spaUrlExceptions(fn (): array => [
+                url('/admin/keluarga/*/cetak'),
+                url('/admin/wilayah/*/cetak-warga'),
+            ])
             // Inter Variable bawaan Filament dipakai agar tidak ada font eksternal.
             ->viteTheme('resources/css/filament/admin/theme.css')
             // Sidebar gelap + topbar putih: pemisahan jelas antara navigasi,

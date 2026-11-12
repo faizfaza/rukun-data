@@ -260,7 +260,8 @@ class KeluargaResource extends Resource
                         })
                         ->columnSpan(fn (): int => auth()->user()?->isSuperadmin() || auth()->user()?->isAdmin() ? 1 : 3),
                 ])
-                ->columns(3),
+                ->columns(3)
+                ->columnSpanFull(),
 
             // DESIGN.md §7.3: dua bagian pendek (data keluarga + data ekonomi)
             // berbagi satu baris, sedangkan bagian anggota dibuat lebar penuh
@@ -403,6 +404,22 @@ class KeluargaResource extends Resource
                     // DESIGN.md §7.3.2: kartu anggota bisa dibuka/tutup dan kartu
                     // pertama otomatis berhubungan "Kepala keluarga".
                     ->collapsible()
+                    ->itemLabel(function (array $state): ?string {
+                        $nama = trim((string) ($state['nama_lengkap'] ?? ''));
+                        $hubId = $state['id_hubungan'] ?? null;
+                        $hubNama = $hubId ? RefHubungan::whereKey($hubId)->value('nama') : null;
+                        $nik = trim((string) ($state['nik'] ?? ''));
+
+                        $label = $nama !== '' ? "Anggota: {$nama}" : 'Anggota Keluarga';
+                        if ($hubNama) {
+                            $label .= " ({$hubNama})";
+                        }
+                        if ($nik !== '') {
+                            $label .= " — NIK: {$nik}";
+                        }
+
+                        return $label;
+                    })
                     ->default(fn (): array => [['id_hubungan' => RefHubungan::KEPALA, 'status_kependudukan' => 'menetap']])
                     ->columns(3)
                     ->schema([
@@ -411,11 +428,13 @@ class KeluargaResource extends Resource
                             ->required()
                             ->length(16)
                             ->rule('regex:/^[0-9]{16}$/')
+                            ->live(onBlur: true)
                             ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nik),
                         TextInput::make('nama_lengkap')
                             ->label('Nama lengkap')
                             ->required()
                             ->maxLength(100)
+                            ->live(onBlur: true)
                             ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nama_lengkap),
                         Select::make('status_kependudukan')
                             ->label('Status Kependudukan')
@@ -424,7 +443,28 @@ class KeluargaResource extends Resource
                                 'pindah' => 'Pindah',
                                 'meninggal' => 'Meninggal Dunia',
                             ])
-                            ->default('menetap'),
+                            ->default('menetap')
+                            ->live()
+                            ->helperText(fn (Get $get): ?string => (int) $get('id_hubungan') === RefHubungan::KEPALA
+                                ? 'Jika Kepala Keluarga diubah ke Pindah/Menetap, anggota lain otomatis ikut menyesuaikan (masih bisa diubah per orang).'
+                                : null)
+                            ->afterStateUpdated(function (?string $state, Get $get, Set $set): void {
+                                if ((int) $get('id_hubungan') !== RefHubungan::KEPALA || ! in_array($state, ['pindah', 'menetap'], true)) {
+                                    return;
+                                }
+
+                                $semuaAnggota = $get('../../anggota');
+                                if (! is_array($semuaAnggota)) {
+                                    return;
+                                }
+
+                                foreach ($semuaAnggota as $key => $row) {
+                                    $statusLama = $row['status_kependudukan'] ?? 'menetap';
+                                    if ($statusLama !== 'meninggal') {
+                                        $set("../../anggota.{$key}.status_kependudukan", $state);
+                                    }
+                                }
+                            }),
                         TextInput::make('tempat_lahir')
                             ->label('Tempat lahir')
                             ->required()
@@ -463,7 +503,6 @@ class KeluargaResource extends Resource
                             ->options(RefHubungan::pluck('nama', 'id'))
                             ->required()
                             ->live(),
-                        ...Profil::anggota(),
                         TextInput::make('nama_ayah')
                             ->label('Nama ayah')
                             ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nama_ayah),
@@ -475,8 +514,10 @@ class KeluargaResource extends Resource
                             ->numeric()
                             ->minValue(0)
                             ->formatStateUsing(fn ($state, ?Anggota $record = null) => $state ?? $record?->penghasilan_bulanan),
-                    ]),
-            ]),
+                        ...Profil::anggota(),
+                    ])
+                    ->columnSpanFull(),
+            ])->columnSpanFull(),
         ])
             ->columns(1);
     }
@@ -506,8 +547,13 @@ class KeluargaResource extends Resource
                 TextColumn::make('wilayah.nama')
                     ->label('RT'),
                 TextColumn::make('anggota_count')
-                    ->label('Anggota')
+                    ->label('Anggota Aktif')
                     ->counts('anggota'),
+                TextColumn::make('anggota_trashed_count')
+                    ->label('Arsip Anggota')
+                    ->counts('anggotaTrashed')
+                    ->badge()
+                    ->color(fn (int $state): string => $state > 0 ? 'warning' : 'gray'),
                 TextColumn::make('kode_pos')
                     ->label('Kode pos'),
                 TextColumn::make('created_at')
@@ -546,7 +592,11 @@ class KeluargaResource extends Resource
                             ),
                         ),
                     )),
-                TrashedFilter::make(),
+                Filter::make('punya_arsip_anggota')
+                    ->label('Memiliki Anggota di Arsip (Terhapus)')
+                    ->query(fn (Builder $query): Builder => $query->whereHas('anggotaTrashed')),
+                TrashedFilter::make()
+                    ->label('Status Arsip KK'),
             ])
             ->actions([
                 ViewAction::make()->iconButton()->tooltip('Lihat'),

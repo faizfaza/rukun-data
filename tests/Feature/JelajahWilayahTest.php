@@ -358,4 +358,32 @@ class JelajahWilayahTest extends TestCase
             ->assertSet('statusFilter', '')
             ->assertSet('filterProvinsi', null);
     }
+
+    public function test_filter_provinsi_menyaring_opsi_kartu_dan_mengecualikan_provinsi_lain(): void
+    {
+        $w = $this->seedDasar();
+        $this->actingAs($this->makeUser('sa2', 'superadmin', null));
+
+        $provLain = Wilayah::create([
+            'kode' => 'PROV-LAIN',
+            'nama' => 'Provinsi Lain',
+            'level' => 'provinsi',
+            'parent_id' => $w['negara']->id,
+            'path' => $w['negara']->path,
+            'is_active' => true,
+        ]);
+
+        $c = $this->buka($w);
+
+        // Saat filter kosong: kedua provinsi ada di opsi
+        $this->assertContains($w['provinsi']->nama, $c->instance()->opsiSaatIni()->pluck('nama')->all());
+        $this->assertContains($provLain->nama, $c->instance()->opsiSaatIni()->pluck('nama')->all());
+
+        // Saat filter provinsi diisi nama provinsi utama
+        $c->set('filterProvinsi', $w['provinsi']->nama);
+
+        $opsi = $c->instance()->opsiSaatIni()->pluck('nama')->all();
+        $this->assertContains($w['provinsi']->nama, $opsi);
+        $this->assertNotContains($provLain->nama, $opsi);
+    }
 }

@@ -16,6 +16,10 @@ class EkonomiKeluarga extends Model
 
     public function setKategoriEkonomiAttribute(string $value): void
     {
+        if ($this->exists && isset($this->attributes['kategori_ekonomi']) && $this->kategori_ekonomi === $value) {
+            return;
+        }
+
         $this->attributes['kategori_ekonomi'] = SensitiveData::encrypt($value);
     }
 

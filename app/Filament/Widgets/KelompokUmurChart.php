@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Widgets\Concerns\MemoizesDetailItems;
 use App\Models\Anggota;
 use App\Support\WilayahScope;
 use Filament\Widgets\ChartWidget;
@@ -11,6 +12,7 @@ use Illuminate\Contracts\Support\Htmlable;
 // DESIGN.md §4: satu warna aksen teal; judul sudah membedakan isi.
 class KelompokUmurChart extends ChartWidget
 {
+    use MemoizesDetailItems;
     protected static ?int $sort = 2;
 
     protected static bool $isLazy = false;
@@ -19,6 +21,56 @@ class KelompokUmurChart extends ChartWidget
 
     protected ?string $heading = 'Sebaran Kelompok Umur';
 
+    protected string $view = 'filament.widgets.interactive-chart';
+
+    public function getDetailType(): string
+    {
+        return 'kelompok_umur';
+    }
+
+    public function getDetailUnit(): string
+    {
+        return 'warga';
+    }
+
+    /**
+     * @return list<array{key: string, label: string, count: int, color: string}>
+     */
+    protected function hitungDetailItems(): array
+    {
+        $buckets = RingkasanWidget::umurBuckets();
+        $palette = ['#0f766e', '#14b8a6', '#5eead4', '#99f6e4', '#cbd6d3'];
+        $now = now();
+
+        // Satu query agregat untuk semua kelompok umur (sebelumnya satu COUNT per kelompok).
+        $selects = [];
+        $bindings = [];
+        foreach (array_keys($buckets) as $i => $key) {
+            $info = $buckets[$key];
+            $kondisi = 'tanggal_lahir <= ?';
+            $bindings[] = $now->copy()->subYears($info['min'])->toDateTimeString();
+            if ($info['max'] !== null) {
+                $kondisi .= ' AND tanggal_lahir > ?';
+                $bindings[] = $now->copy()->subYears($info['max'] + 1)->toDateTimeString();
+            }
+            $selects[] = "SUM(CASE WHEN {$kondisi} THEN 1 ELSE 0 END) as b{$i}";
+        }
+
+        $row = Anggota::query()->selectRaw(implode(', ', $selects), $bindings)->toBase()->first();
+
+        $items = [];
+        foreach (array_keys($buckets) as $i => $key) {
+            $items[] = [
+                'key' => $key,
+                'label' => $buckets[$key]['label'],
+                'count' => (int) ($row->{"b{$i}"} ?? 0),
+                'color' => $palette[$i % count($palette)],
+            ];
+        }
+
+        return $items;
+    }
+
     protected function getType(): string
     {
         return 'bar';
@@ -26,31 +78,15 @@ class KelompokUmurChart extends ChartWidget
 
     protected function getData(): array
     {
-        $buckets = [
-            'Balita (0–5)' => [0, 5],
-            'Anak (6–12)' => [6, 12],
-            'Remaja (13–17)' => [13, 17],
-            'Dewasa (18–59)' => [18, 59],
-            'Lansia (60+)' => [60, null],
-        ];
-
-        $now = now();
+        $items = $this->getDetailItems();
         $labels = [];
         $data = [];
 
-        foreach ($buckets as $label => [$min, $max]) {
-            $query = Anggota::query()->where('tanggal_lahir', '<=', $now->copy()->subYears($min));
-
-            if ($max !== null) {
-                $query->where('tanggal_lahir', '>', $now->copy()->subYears($max + 1));
-            }
-
-            $count = $query->count();
-
+        foreach ($items as $item) {
             // Nilai ikut ditampilkan pada label agar kategori 0 tetap terbaca,
             // tanpa menambah dependensi data-labels.
-            $labels[] = $label.' · '.$count;
-            $data[] = $count;
+            $labels[] = $item['label'].' · '.$item['count'];
+            $data[] = $item['count'];
         }
 
         return [

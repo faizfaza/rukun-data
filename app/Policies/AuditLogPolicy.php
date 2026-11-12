@@ -15,8 +15,12 @@ class AuditLogPolicy
 
     public function view(User $user, AuditLog $auditLog): bool
     {
-        if ($user->isSuperadmin() || $user->isAdmin()) {
+        if ($user->isSuperadmin()) {
             return true;
+        }
+
+        if ($user->isAdmin()) {
+            return ! ($auditLog->pengguna?->isSuperadmin() ?? false);
         }
 
         if ($user->isAdminRt()) {
@@ -28,7 +32,7 @@ class AuditLogPolicy
                 return true;
             }
             $targetUser = $auditLog->pengguna;
-            if (! $targetUser) {
+            if (! $targetUser || ! $targetUser->isAdminRt()) {
                 return false;
             }
             $allowedWilayah = WilayahAccess::allowedWilayahIds($user) ?? [];

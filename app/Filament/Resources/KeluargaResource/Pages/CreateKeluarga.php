@@ -53,7 +53,9 @@ class CreateKeluarga extends CreateRecord
             }
         }
 
-        if (empty($data['alamat_ktp']) && ! empty($data['alamat'])) {
+        $isSame = ($this->form->getRawState()['ktp_sama_domisili'] ?? false) || ! empty($data['ktp_sama_domisili']);
+
+        if ($isSame || (empty($data['alamat_ktp']) && ! empty($data['alamat']))) {
             $data['alamat_ktp'] = $data['alamat'];
         }
 

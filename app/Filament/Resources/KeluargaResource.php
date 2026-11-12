@@ -285,7 +285,7 @@ class KeluargaResource extends Resource
                         ->helperText('Alamat domisili / tempat tinggal keluarga saat ini.')
                         ->required()
                         ->maxLength(500)
-                        ->live(onBlur: true)
+                        ->live(debounce: 500)
                         ->afterStateUpdated(function (Get $get, Set $set, ?string $state): void {
                             if ($get('ktp_sama_domisili')) {
                                 $set('alamat_ktp', $state);
@@ -298,9 +298,19 @@ class KeluargaResource extends Resource
                         ->default(true)
                         ->live()
                         ->dehydrated(false)
-                        ->afterStateHydrated(function (Checkbox $component, ?Keluarga $record, Set $set): void {
+                        ->afterStateHydrated(function (Checkbox $component, ?Keluarga $record, Set $set, Get $get): void {
                             if ($record) {
-                                $set('ktp_sama_domisili', empty($record->alamat_ktp) || $record->alamat_ktp === $record->alamat);
+                                $isSame = blank($record->alamat_ktp) || $record->alamat_ktp === $record->alamat;
+                                $set('ktp_sama_domisili', $isSame);
+                                if ($isSame) {
+                                    $set('alamat_ktp', $record->alamat);
+                                }
+                            } else {
+                                $isSame = (bool) ($component->getState() ?? true);
+                                $set('ktp_sama_domisili', $isSame);
+                                if ($isSame && filled($get('alamat'))) {
+                                    $set('alamat_ktp', $get('alamat'));
+                                }
                             }
                         })
                         ->afterStateUpdated(function (Get $get, Set $set, bool $state): void {
@@ -311,9 +321,20 @@ class KeluargaResource extends Resource
                         ->columnSpanFull(),
                     Textarea::make('alamat_ktp')
                         ->label('Alamat KTP')
-                        ->helperText('Alamat sesuai Kartu Tanda Penduduk.')
+                        ->helperText(fn (Get $get): string => $get('ktp_sama_domisili')
+                            ? 'Alamat KTP otomatis disamakan dengan alamat domisili di atas.'
+                            : 'Alamat sesuai Kartu Tanda Penduduk.'
+                        )
                         ->maxLength(500)
-                        ->formatStateUsing(fn (?string $state, ?Keluarga $record = null): ?string => $state ?? $record?->alamat_ktp)
+                        ->disabled(fn (Get $get): bool => (bool) $get('ktp_sama_domisili'))
+                        ->dehydrated()
+                        ->formatStateUsing(function (?string $state, ?Keluarga $record, Get $get): ?string {
+                            if ($get('ktp_sama_domisili')) {
+                                return $get('alamat') ?: ($record?->alamat ?: $state);
+                            }
+
+                            return filled($state) ? $state : ($record?->alamat_ktp ?: ($record?->alamat ?: null));
+                        })
                         ->columnSpanFull(),
                 ])->columns(2),
 

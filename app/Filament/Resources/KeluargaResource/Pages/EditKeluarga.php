@@ -16,7 +16,10 @@ class EditKeluarga extends EditRecord
     {
         $data['no_kk'] = $this->record->no_kk;
         $data['alamat'] = $this->record->alamat;
-        $data['alamat_ktp'] = $this->record->alamat_ktp ?? $this->record->alamat;
+
+        $isSame = blank($this->record->alamat_ktp) || $this->record->alamat_ktp === $this->record->alamat;
+        $data['ktp_sama_domisili'] = $isSame;
+        $data['alamat_ktp'] = $isSame ? $this->record->alamat : $this->record->alamat_ktp;
 
         return $data;
     }
@@ -31,7 +34,9 @@ class EditKeluarga extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        if (empty($data['alamat_ktp']) && ! empty($data['alamat'])) {
+        $isSame = ($this->form->getRawState()['ktp_sama_domisili'] ?? false) || ! empty($data['ktp_sama_domisili']);
+
+        if ($isSame || (empty($data['alamat_ktp']) && ! empty($data['alamat']))) {
             $data['alamat_ktp'] = $data['alamat'];
         }
 

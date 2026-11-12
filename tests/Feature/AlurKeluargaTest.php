@@ -273,4 +273,39 @@ class AlurKeluargaTest extends TestCase
         $this->assertSame('6371010101800001', $anggota->fresh()->nik);
         $this->assertSame('Anggota 0', $anggota->fresh()->nama_lengkap);
     }
+
+    public function test_alamat_ktp_otomatis_sama_dengan_domisili_dan_terkunci_saat_dicentang(): void
+    {
+        $w = $this->seedDasar();
+        $admin = $this->makeUser('admin', 'superadmin', null);
+        $this->actingAs($admin);
+
+        // 1. Pada form Create: default checkbox dicentang, alamat KTP otomatis terisi dan terkunci (disabled)
+        $comp = Livewire::test(CreateKeluarga::class);
+        $comp->assertFormFieldIsDisabled('alamat_ktp');
+        $comp->set('data.alamat', 'Jl. Mawar No. 10');
+        $this->assertSame('Jl. Mawar No. 10', $comp->get('data.alamat_ktp'));
+
+        // 2. Jika checkbox tidak dicentang: alamat KTP terbuka (tidak disabled) dan bisa diisi manual
+        $comp->set('data.ktp_sama_domisili', false);
+        $comp->assertFormFieldIsEnabled('alamat_ktp');
+        $comp->set('data.alamat_ktp', 'Jl. KTP Asal No. 99');
+        $this->assertSame('Jl. KTP Asal No. 99', $comp->get('data.alamat_ktp'));
+
+        // 3. Jika checkbox dicentang kembali: alamat KTP otomatis disamakan lagi dengan domisili dan terkunci
+        $comp->set('data.ktp_sama_domisili', true);
+        $comp->assertFormFieldIsDisabled('alamat_ktp');
+        $this->assertSame('Jl. Mawar No. 10', $comp->get('data.alamat_ktp'));
+
+        // 4. Pada form Edit untuk keluarga yang alamat KTP-nya kosong atau sama:
+        $keluarga = $this->makeKeluarga($w['rt1']->id, '6371010101000001', [
+            ['nik' => '6371010101800001', 'hubungan' => 1],
+        ], $admin->id);
+        $keluarga->update(['alamat' => 'Jl. Domisili No. 1', 'alamat_ktp' => null]);
+
+        $editComp = Livewire::test(EditKeluarga::class, ['record' => $keluarga->id]);
+        $editComp->assertFormFieldIsDisabled('alamat_ktp');
+        $this->assertSame('Jl. Domisili No. 1', $editComp->get('data.alamat_ktp'));
+        $this->assertTrue((bool) $editComp->get('data.ktp_sama_domisili'));
+    }
 }

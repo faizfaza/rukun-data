@@ -55,7 +55,7 @@ class AuditLogResource extends Resource
             });
         }
 
-        if ($user->isAdminRw() || $user->isAdminRt()) {
+        if ($user->isAdminDesa() || $user->isAdminRw() || $user->isAdminRt()) {
             $allowedRtIds = WilayahAccess::allowedRtIds($user) ?? [];
             $allowedWilayahIds = WilayahAccess::allowedWilayahIds($user) ?? [];
 
@@ -63,8 +63,13 @@ class AuditLogResource extends Resource
                 // 1. Log aktivitas yang dilakukan oleh pengguna itu sendiri
                 $q->where('id_pengguna', $user->id);
 
-                // 2. Log aktivitas yang dilakukan oleh Admin RT bawahan (khusus Admin RW)
-                if ($user->isAdminRw() && ! empty($allowedWilayahIds)) {
+                // 2. Log aktivitas yang dilakukan oleh Admin RW / Admin RT bawahan
+                if ($user->isAdminDesa() && ! empty($allowedWilayahIds)) {
+                    $q->orWhereHas('pengguna', function (Builder $userQuery) use ($allowedWilayahIds): void {
+                        $userQuery->whereIn('role', [Role::AdminRw->value, Role::AdminRt->value])
+                            ->whereIn('id_wilayah', $allowedWilayahIds);
+                    });
+                } elseif ($user->isAdminRw() && ! empty($allowedWilayahIds)) {
                     $q->orWhereHas('pengguna', function (Builder $userQuery) use ($allowedWilayahIds): void {
                         $userQuery->where('role', Role::AdminRt->value)
                             ->whereIn('id_wilayah', $allowedWilayahIds);

@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources\KeluargaResource\Pages;
 
+use App\Filament\Pages\KonfirmasiPengajuan;
 use App\Filament\Resources\KeluargaResource;
 use App\Models\Anggota;
 use App\Models\Keluarga;
 use App\Models\RefHubungan;
+use App\Observers\AuditObserver;
 use App\Support\SensitiveData;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
@@ -115,5 +117,16 @@ class CreateKeluarga extends CreateRecord
                 'data.anggota' => 'Setiap keluarga harus memiliki tepat satu kepala keluarga.',
             ]);
         }
+    }
+
+    protected function getRedirectUrl(): string
+    {
+        $ticketIds = AuditObserver::popLastCreatedTicketIds();
+
+        if ($ticketIds !== []) {
+            return KonfirmasiPengajuan::urlForTickets($ticketIds);
+        }
+
+        return parent::getRedirectUrl();
     }
 }

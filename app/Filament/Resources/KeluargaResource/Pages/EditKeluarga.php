@@ -2,8 +2,10 @@
 
 namespace App\Filament\Resources\KeluargaResource\Pages;
 
+use App\Filament\Pages\KonfirmasiPengajuan;
 use App\Filament\Resources\KeluargaResource;
 use App\Models\RefHubungan;
+use App\Observers\AuditObserver;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
@@ -57,8 +59,26 @@ class EditKeluarga extends EditRecord
         return $data;
     }
 
+    protected function getRedirectUrl(): ?string
+    {
+        $ticketIds = AuditObserver::popLastCreatedTicketIds();
+
+        if ($ticketIds !== []) {
+            return KonfirmasiPengajuan::urlForTickets($ticketIds);
+        }
+
+        return parent::getRedirectUrl();
+    }
+
     protected function getHeaderActions(): array
     {
-        return [ViewAction::make(), DeleteAction::make()];
+        return [
+            ViewAction::make(),
+            DeleteAction::make()->successRedirectUrl(function (): ?string {
+                $ticketIds = AuditObserver::popLastCreatedTicketIds();
+
+                return $ticketIds !== [] ? KonfirmasiPengajuan::urlForTickets($ticketIds) : null;
+            }),
+        ];
     }
 }

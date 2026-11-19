@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources\AnggotaResource\Pages;
 
+use App\Filament\Pages\KonfirmasiPengajuan;
 use App\Filament\Resources\AnggotaResource;
 use App\Models\Anggota;
 use App\Models\RefHubungan;
+use App\Observers\AuditObserver;
 use App\Support\SensitiveData;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
@@ -75,8 +77,26 @@ class EditAnggota extends EditRecord
         return $data;
     }
 
+    protected function getRedirectUrl(): ?string
+    {
+        $ticketIds = AuditObserver::popLastCreatedTicketIds();
+
+        if ($ticketIds !== []) {
+            return KonfirmasiPengajuan::urlForTickets($ticketIds);
+        }
+
+        return parent::getRedirectUrl();
+    }
+
     protected function getHeaderActions(): array
     {
-        return [ViewAction::make(), DeleteAction::make()];
+        return [
+            ViewAction::make(),
+            DeleteAction::make()->successRedirectUrl(function (): ?string {
+                $ticketIds = AuditObserver::popLastCreatedTicketIds();
+
+                return $ticketIds !== [] ? KonfirmasiPengajuan::urlForTickets($ticketIds) : null;
+            }),
+        ];
     }
 }

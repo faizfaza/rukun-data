@@ -42,7 +42,9 @@ class EditUser extends EditRecord
     {
         $record = $this->getRecord();
 
-        if (($data['role'] ?? null) === \App\Enums\Role::AdminRw->value) {
+        if (($data['role'] ?? null) === \App\Enums\Role::AdminDesa->value) {
+            $data['id_wilayah'] = $data['id_wilayah'] ?? $data['kelurahan_id'] ?? null;
+        } elseif (($data['role'] ?? null) === \App\Enums\Role::AdminRw->value) {
             $data['id_wilayah'] = $data['id_wilayah'] ?? $data['rw_id'] ?? null;
         } elseif (($data['role'] ?? null) === \App\Enums\Role::AdminRt->value) {
             $data['id_wilayah'] = $data['id_wilayah'] ?? $data['rt_id'] ?? null;

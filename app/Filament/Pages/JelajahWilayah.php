@@ -134,7 +134,8 @@ class JelajahWilayah extends Page implements HasTable
     {
         return $table
             // Query dievaluasi saat render, supaya RT terpilih terbaru dipakai.
-            ->query(fn (): Builder => Keluarga::query()->where('id_wilayah', $this->nodeTerpilihRt()?->id ?? -1))
+            // KK baru yang belum disahkan (menunggu_rw / menunggu_desa) disembunyikan sampai disetujui.
+            ->query(fn (): Builder => Keluarga::query()->terverifikasi()->where('id_wilayah', $this->nodeTerpilihRt()?->id ?? -1))
             ->columns([
                 TextColumn::make('no_kk_masked')
                     ->label('No KK')
@@ -816,8 +817,10 @@ class JelajahWilayah extends Page implements HasTable
             return '';
         }
 
-        $keluarga = Keluarga::where('id_wilayah', $rt->id)->count();
-        $keluargaIds = Keluarga::where('id_wilayah', $rt->id)->pluck('id');
+        $keluarga = Keluarga::terverifikasi()->where('id_wilayah', $rt->id)->count();
+        $keluargaIds = Keluarga::terverifikasi()->where('id_wilayah', $rt->id)->pluck('id');
+        $totalSemua = Keluarga::where('id_wilayah', $rt->id)->count();
+        $menungguVerifikasi = max(0, $totalSemua - $keluarga);
 
         $anggotaMenetap = Anggota::whereIn('id_keluarga', $keluargaIds)
             ->where(fn ($q) => $q->where('status_kependudukan', 'menetap')->orWhereNull('status_kependudukan'))
@@ -829,7 +832,12 @@ class JelajahWilayah extends Page implements HasTable
 
         $anggotaTotal = Anggota::whereIn('id_keluarga', $keluargaIds)->count();
 
-        return "{$keluarga} keluarga | {$anggotaMenetap} warga aktif (menetap), {$anggotaPindah} pindah (total: {$anggotaTotal} jiwa)";
+        $teks = "{$keluarga} keluarga | {$anggotaMenetap} warga aktif (menetap), {$anggotaPindah} pindah (total: {$anggotaTotal} jiwa)";
+        if ($menungguVerifikasi > 0) {
+            $teks .= " · {$menungguVerifikasi} pengajuan KK baru menunggu verifikasi RW/Desa";
+        }
+
+        return $teks;
     }
 
     public function labelUntuk(Wilayah $wilayah): string
@@ -1271,37 +1279,80 @@ class JelajahWilayah extends Page implements HasTable
     public function hapusFilterProvinsi(): void
     {
         $this->filterProvinsi = null;
+        $this->filterKabkota = null;
+        $this->filterKecamatan = null;
+        $this->filterDesa = null;
+        $this->filterRw = null;
+        $this->filterRt = null;
+        $this->pilihan = [];
         $this->resetTable();
     }
 
     public function hapusFilterKabkota(): void
     {
         $this->filterKabkota = null;
+        $this->filterKecamatan = null;
+        $this->filterDesa = null;
+        $this->filterRw = null;
+        $this->filterRt = null;
+        $this->sinkronkanPilihanDariFilterTersisa();
         $this->resetTable();
     }
 
     public function hapusFilterKecamatan(): void
     {
         $this->filterKecamatan = null;
+        $this->filterDesa = null;
+        $this->filterRw = null;
+        $this->filterRt = null;
+        $this->sinkronkanPilihanDariFilterTersisa();
         $this->resetTable();
     }
 
     public function hapusFilterDesa(): void
     {
         $this->filterDesa = null;
+        $this->filterRw = null;
+        $this->filterRt = null;
+        $this->sinkronkanPilihanDariFilterTersisa();
         $this->resetTable();
     }
 
     public function hapusFilterRw(): void
     {
         $this->filterRw = null;
+        $this->filterRt = null;
+        $this->sinkronkanPilihanDariFilterTersisa();
         $this->resetTable();
     }
 
     public function hapusFilterRt(): void
     {
         $this->filterRt = null;
+        $this->sinkronkanPilihanDariFilterTersisa();
         $this->resetTable();
+    }
+
+    protected function sinkronkanPilihanDariFilterTersisa(): void
+    {
+        $terakhirId = null;
+        foreach ([$this->filterRt, $this->filterRw, $this->filterDesa, $this->filterKecamatan, $this->filterKabkota, $this->filterProvinsi] as $val) {
+            if (is_numeric($val) && (int) $val > 0) {
+                $terakhirId = (int) $val;
+                break;
+            }
+        }
+
+        if ($terakhirId !== null) {
+            $node = Wilayah::find($terakhirId);
+            if ($node) {
+                $this->pilihan = $this->pilihanDariNode($node, $this->titikAwal(auth()->user()));
+
+                return;
+            }
+        }
+
+        $this->pilihan = [];
     }
 
     public function resetGranularFilters(): void

@@ -89,7 +89,7 @@ class ListWilayah extends ListRecords
             $this->parentId = $user->id_wilayah;
         }
 
-        if ($user?->isAdminRw() && $user->id_wilayah && $this->parentId === null && $this->mode === 'hirarki') {
+        if (($user?->isAdminDesa() || $user?->isAdminRw()) && $user->id_wilayah && $this->parentId === null && $this->mode === 'hirarki') {
             $this->parentId = $user->id_wilayah;
         }
 
@@ -913,6 +913,11 @@ class ListWilayah extends ListRecords
     public function hapusFilterProvinsi(): void
     {
         $this->filterProvinsi = '';
+        $this->filterKabkota = '';
+        $this->filterKecamatan = '';
+        $this->filterDesa = '';
+        $this->filterRw = '';
+        $this->filterRt = '';
         $this->parentId = Wilayah::where('level', 'negara')->value('id');
         $this->resetTable();
     }
@@ -920,30 +925,45 @@ class ListWilayah extends ListRecords
     public function hapusFilterKabkota(): void
     {
         $this->filterKabkota = '';
+        $this->filterKecamatan = '';
+        $this->filterDesa = '';
+        $this->filterRw = '';
+        $this->filterRt = '';
+        $this->parentId = is_numeric($this->filterProvinsi) ? (int) $this->filterProvinsi : Wilayah::where('level', 'negara')->value('id');
         $this->resetTable();
     }
 
     public function hapusFilterKecamatan(): void
     {
         $this->filterKecamatan = '';
+        $this->filterDesa = '';
+        $this->filterRw = '';
+        $this->filterRt = '';
+        $this->parentId = is_numeric($this->filterKabkota) ? (int) $this->filterKabkota : (is_numeric($this->filterProvinsi) ? (int) $this->filterProvinsi : Wilayah::where('level', 'negara')->value('id'));
         $this->resetTable();
     }
 
     public function hapusFilterDesa(): void
     {
         $this->filterDesa = '';
+        $this->filterRw = '';
+        $this->filterRt = '';
+        $this->parentId = is_numeric($this->filterKecamatan) ? (int) $this->filterKecamatan : (is_numeric($this->filterKabkota) ? (int) $this->filterKabkota : Wilayah::where('level', 'negara')->value('id'));
         $this->resetTable();
     }
 
     public function hapusFilterRw(): void
     {
         $this->filterRw = '';
+        $this->filterRt = '';
+        $this->parentId = is_numeric($this->filterDesa) ? (int) $this->filterDesa : (is_numeric($this->filterKecamatan) ? (int) $this->filterKecamatan : Wilayah::where('level', 'negara')->value('id'));
         $this->resetTable();
     }
 
     public function hapusFilterRt(): void
     {
         $this->filterRt = '';
+        $this->parentId = is_numeric($this->filterRw) ? (int) $this->filterRw : (is_numeric($this->filterDesa) ? (int) $this->filterDesa : Wilayah::where('level', 'negara')->value('id'));
         $this->resetTable();
     }
 

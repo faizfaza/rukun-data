@@ -12,6 +12,8 @@ use App\Models\Wilayah;
 use App\Observers\AuditObserver;
 use App\Observers\WilayahObserver;
 use App\Support\OperationalGuard;
+use Filament\Events\ServingFilament;
+use Filament\Support\Facades\FilamentColor;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -46,6 +48,25 @@ class AppServiceProvider extends ServiceProvider
         // tetap tanpa menyimpan nilai sensitif (password tidak pernah dicatat).
         Wilayah::observe(AuditObserver::class);
         User::observe(AuditObserver::class);
+
+        Event::listen(ServingFilament::class, function (): void {
+            $user = auth()->user();
+            $desa = $user?->desaWilayah();
+            if (! $desa && ($user?->isSuperadmin() || $user?->isAdmin())) {
+                try {
+                    $desa = Wilayah::desaKlienDefault();
+                } catch (\Throwable) {
+                    $desa = null;
+                }
+            }
+            if ($desa) {
+                $warna = (string) $desa->pengaturanDesa('warna_tema', 'teal');
+                $palet = Wilayah::PALET_WARNA_DESA[$warna] ?? Wilayah::PALET_WARNA_DESA['teal'];
+                FilamentColor::register([
+                    'primary' => $palet['shades'],
+                ]);
+            }
+        });
 
         Event::listen(Login::class, function (Login $event): void {
             if ($event->user) {

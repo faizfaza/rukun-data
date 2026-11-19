@@ -594,36 +594,63 @@ class ListUsers extends ListRecords
     public function hapusFilterProvinsi(): void
     {
         $this->filterProvinsi = '';
+        $this->filterKabkota = '';
+        $this->filterKecamatan = '';
+        $this->filterDesa = '';
+        $this->filterRw = '';
+        $this->filterRt = '';
+        $this->wilayah = null;
+        $this->halamanWilayah = 1;
         $this->resetTable();
     }
 
     public function hapusFilterKabkota(): void
     {
         $this->filterKabkota = '';
+        $this->filterKecamatan = '';
+        $this->filterDesa = '';
+        $this->filterRw = '';
+        $this->filterRt = '';
+        $this->wilayah = is_numeric($this->filterProvinsi) ? (int) $this->filterProvinsi : null;
+        $this->halamanWilayah = 1;
         $this->resetTable();
     }
 
     public function hapusFilterKecamatan(): void
     {
         $this->filterKecamatan = '';
+        $this->filterDesa = '';
+        $this->filterRw = '';
+        $this->filterRt = '';
+        $this->wilayah = is_numeric($this->filterKabkota) ? (int) $this->filterKabkota : (is_numeric($this->filterProvinsi) ? (int) $this->filterProvinsi : null);
+        $this->halamanWilayah = 1;
         $this->resetTable();
     }
 
     public function hapusFilterDesa(): void
     {
         $this->filterDesa = '';
+        $this->filterRw = '';
+        $this->filterRt = '';
+        $this->wilayah = is_numeric($this->filterKecamatan) ? (int) $this->filterKecamatan : (is_numeric($this->filterKabkota) ? (int) $this->filterKabkota : null);
+        $this->halamanWilayah = 1;
         $this->resetTable();
     }
 
     public function hapusFilterRw(): void
     {
         $this->filterRw = '';
+        $this->filterRt = '';
+        $this->wilayah = is_numeric($this->filterDesa) ? (int) $this->filterDesa : (is_numeric($this->filterKecamatan) ? (int) $this->filterKecamatan : null);
+        $this->halamanWilayah = 1;
         $this->resetTable();
     }
 
     public function hapusFilterRt(): void
     {
         $this->filterRt = '';
+        $this->wilayah = is_numeric($this->filterRw) ? (int) $this->filterRw : (is_numeric($this->filterDesa) ? (int) $this->filterDesa : null);
+        $this->halamanWilayah = 1;
         $this->resetTable();
     }
 

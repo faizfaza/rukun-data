@@ -60,6 +60,14 @@ class WilayahResource extends Resource
                                 return ['rt' => Wilayah::labelLevel('rt')];
                             }
 
+                            if (auth()->user()?->isAdminDesa()) {
+                                return [
+                                    'dusun' => Wilayah::labelLevel('dusun'),
+                                    'rw' => Wilayah::labelLevel('rw'),
+                                    'rt' => Wilayah::labelLevel('rt'),
+                                ];
+                            }
+
                             return Wilayah::levelOptions();
                         })
                         ->default(fn (): ?string => auth()->user()?->isAdminRw() ? 'rt' : null)
@@ -617,10 +625,10 @@ class WilayahResource extends Resource
             return $query;
         }
 
-        if ($user->isAdminRw() && $user->id_wilayah) {
-            $rw = $user->wilayah;
-            if ($rw) {
-                return $query->where('path', 'like', $rw->path.'%');
+        if (($user->isAdminDesa() || $user->isAdminRw()) && $user->id_wilayah) {
+            $root = $user->wilayah;
+            if ($root) {
+                return $query->where('path', 'like', $root->path.'%');
             }
         }
 

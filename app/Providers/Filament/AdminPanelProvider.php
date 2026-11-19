@@ -103,8 +103,16 @@ class AdminPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
             ])
             ->renderHook(
+                PanelsRenderHook::SIDEBAR_NAV_START,
+                fn () => view('filament.hooks.sidebar-desa-card'),
+            )
+            ->renderHook(
                 PanelsRenderHook::TOPBAR_END,
                 fn () => view('filament.hooks.mobile-view-pill'),
+            )
+            ->renderHook(
+                PanelsRenderHook::USER_MENU_BEFORE,
+                fn () => view('filament.hooks.topbar-validasi-notifikasi'),
             )
             ->renderHook(
                 PanelsRenderHook::BODY_END,

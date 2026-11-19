@@ -11,13 +11,19 @@ class WilayahPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->isSuperadmin() || $user->isAdmin() || $user->isAdminRw();
+        return $user->isSuperadmin() || $user->isAdmin() || $user->isAdminDesa() || $user->isAdminRw();
     }
 
     public function view(User $user, Wilayah $wilayah): bool
     {
         if ($user->isSuperadmin() || $user->isAdmin()) {
             return true;
+        }
+
+        if ($user->isAdminDesa()) {
+            $allowed = \App\Support\WilayahAccess::allowedWilayahIds($user) ?? [];
+
+            return in_array($wilayah->id, $allowed, true);
         }
 
         if ($user->isAdminRw()) {
@@ -29,13 +35,20 @@ class WilayahPolicy
 
     public function create(User $user): bool
     {
-        return $user->isSuperadmin() || $user->isAdmin() || $user->isAdminRw();
+        return $user->isSuperadmin() || $user->isAdmin() || $user->isAdminDesa() || $user->isAdminRw();
     }
 
     public function update(User $user, Wilayah $wilayah): bool
     {
         if ($user->isSuperadmin() || $user->isAdmin()) {
             return true;
+        }
+
+        if ($user->isAdminDesa()) {
+            $allowed = \App\Support\WilayahAccess::allowedWilayahIds($user) ?? [];
+
+            return in_array($wilayah->level, ['desa', 'dusun', 'rw', 'rt'], true)
+                && in_array($wilayah->id, $allowed, true);
         }
 
         if ($user->isAdminRw()) {
@@ -49,6 +62,14 @@ class WilayahPolicy
     {
         if ($user->isSuperadmin() || $user->isAdmin()) {
             return $this->tanpaTurunan($wilayah);
+        }
+
+        if ($user->isAdminDesa()) {
+            $allowed = \App\Support\WilayahAccess::allowedWilayahIds($user) ?? [];
+
+            return in_array($wilayah->level, ['dusun', 'rw', 'rt'], true)
+                && in_array($wilayah->id, $allowed, true)
+                && $this->tanpaTurunan($wilayah);
         }
 
         if ($user->isAdminRw()) {

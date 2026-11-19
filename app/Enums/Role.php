@@ -9,6 +9,7 @@ enum Role: string
 {
     case Superadmin = 'superadmin';
     case Admin = 'admin';
+    case AdminDesa = 'admin_desa';
     case AdminRw = 'admin_rw';
     case AdminRt = 'admin_rt';
 
@@ -17,6 +18,7 @@ enum Role: string
         return match ($this) {
             self::Superadmin => 'Superadmin',
             self::Admin => 'Admin',
+            self::AdminDesa => 'Admin Desa / Kepala Desa',
             self::AdminRw => 'Admin RW',
             self::AdminRt => 'Admin RT',
         };
@@ -28,19 +30,22 @@ enum Role: string
     {
         return match ($this) {
             self::Superadmin, self::Admin => null,
+            self::AdminDesa => 'desa',
             self::AdminRw => 'rw',
             self::AdminRt => 'rt',
         };
     }
 
-    // Superadmin: bisa buat akun untuk Petugas RT, RW, Admin, dan Superadmin.
+    // Superadmin: bisa buat akun untuk Petugas RT, RW, Admin Desa, Admin, dan Superadmin.
     // Admin: bisa buat apa yang superadmin lakukan kecuali tidak dapat membuat admin lagi.
+    // Admin Desa / Kepala Desa: bisa membuat dan mengelola Admin RW & Admin RT di desanya.
     /** @return list<Role> */
     public function bolehMembuat(): array
     {
         return match ($this) {
-            self::Superadmin => [self::Superadmin, self::Admin, self::AdminRw, self::AdminRt],
-            self::Admin => [self::AdminRw, self::AdminRt],
+            self::Superadmin => [self::Superadmin, self::Admin, self::AdminDesa, self::AdminRw, self::AdminRt],
+            self::Admin => [self::AdminDesa, self::AdminRw, self::AdminRt],
+            self::AdminDesa => [self::AdminRw, self::AdminRt],
             self::AdminRw => [],
             self::AdminRt => [],
         };

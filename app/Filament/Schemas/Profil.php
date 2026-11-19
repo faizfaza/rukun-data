@@ -75,8 +75,35 @@ final class Profil
     {
         return Section::make('Identitas Admin')->description('Opsional. Isi informasi yang diketahui. Data disimpan terenkripsi.')->schema([
             TextInput::make('identitas.nama_lengkap')->label('Nama lengkap identitas')->maxLength(100),
-            TextInput::make('identitas.nik')->label('NIK')->nullable()->rule('regex:/^[0-9]{16}$/'),
-            TextInput::make('identitas.kontak')->label('Nomor kontak')->tel()->maxLength(30),
+            TextInput::make('identitas.nik')
+                ->label('NIK')
+                ->placeholder('16 digit angka NIK')
+                ->helperText('Format 16 digit angka (huruf otomatis ditolak).')
+                ->nullable()
+                ->length(16)
+                ->minLength(16)
+                ->maxLength(16)
+                ->rule('regex:/^[0-9]{16}$/')
+                ->validationMessages([
+                    'regex' => 'NIK harus tepat 16 digit angka.',
+                    'min' => 'NIK harus tepat 16 digit angka.',
+                    'max' => 'NIK maksimal 16 digit angka.',
+                ])
+                ->extraInputAttributes([
+                    'inputmode' => 'numeric',
+                    'maxlength' => '16',
+                    'pattern' => '[0-9]{16}',
+                    'oninput' => "this.value = this.value.replace(/[^0-9]/g, '').slice(0, 16)",
+                ]),
+            TextInput::make('identitas.kontak')
+                ->label('Nomor kontak')
+                ->tel()
+                ->maxLength(20)
+                ->extraInputAttributes([
+                    'inputmode' => 'tel',
+                    'maxlength' => '20',
+                    'oninput' => "this.value = this.value.replace(/[^0-9+\\-\\s]/g, '').slice(0, 20)",
+                ]),
             Textarea::make('identitas.alamat')->label('Alamat')->maxLength(500),
             TextInput::make('identitas.tempat_lahir')->label('Tempat lahir')->maxLength(100),
             DatePicker::make('identitas.tanggal_lahir')->label('Tanggal lahir')->maxDate(now()),

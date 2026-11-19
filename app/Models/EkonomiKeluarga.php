@@ -25,7 +25,11 @@ class EkonomiKeluarga extends Model
 
     public function getKategoriEkonomiAttribute(?string $value): ?string
     {
-        return SensitiveData::decrypt($value);
+        try {
+            return SensitiveData::decrypt($value);
+        } catch (\Throwable) {
+            return $value;
+        }
     }
 
     public function keluarga(): BelongsTo

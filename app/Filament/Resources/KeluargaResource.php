@@ -270,16 +270,41 @@ class KeluargaResource extends Resource
                 Section::make('Data Keluarga')->description(fn (?Keluarga $record) => $record && ! $record->wilayah->aktifEfektif() ? 'Wilayah nonaktif: koreksi data lama diperbolehkan; penambahan data baru diblokir sampai wilayah dan induknya aktif.' : null)->schema([
                     TextInput::make('no_kk')
                         ->label('No KK')
+                        ->placeholder('16 digit angka No KK')
                         ->required()
                         ->length(16)
+                        ->minLength(16)
+                        ->maxLength(16)
                         ->rule('regex:/^[0-9]{16}$/')
                         ->formatStateUsing(fn (?string $state, ?Keluarga $record = null): ?string => $state ?? $record?->no_kk)
-                        ->validationMessages(['regex' => 'No KK harus 16 digit angka.']),
+                        ->validationMessages([
+                            'regex' => 'No KK harus 16 digit angka.',
+                            'min' => 'No KK harus 16 digit angka.',
+                            'max' => 'No KK maksimal 16 digit angka.',
+                        ])
+                        ->extraInputAttributes([
+                            'inputmode' => 'numeric',
+                            'maxlength' => '16',
+                            'pattern' => '[0-9]{16}',
+                            'oninput' => "this.value = this.value.replace(/[^0-9]/g, '').slice(0, 16)",
+                        ]),
                     TextInput::make('kode_pos')
                         ->label('Kode Pos')
+                        ->placeholder('5 digit angka')
                         ->required()
                         ->length(5)
-                        ->rule('regex:/^[0-9]{5}$/'),
+                        ->minLength(5)
+                        ->maxLength(5)
+                        ->rule('regex:/^[0-9]{5}$/')
+                        ->validationMessages([
+                            'regex' => 'Kode Pos harus 5 digit angka.',
+                        ])
+                        ->extraInputAttributes([
+                            'inputmode' => 'numeric',
+                            'maxlength' => '5',
+                            'pattern' => '[0-9]{5}',
+                            'oninput' => "this.value = this.value.replace(/[^0-9]/g, '').slice(0, 5)",
+                        ]),
                     Textarea::make('alamat')
                         ->label('Alamat Domisili')
                         ->helperText('Alamat domisili / tempat tinggal keluarga saat ini.')
@@ -446,9 +471,23 @@ class KeluargaResource extends Resource
                     ->schema([
                         TextInput::make('nik')
                             ->label('NIK')
+                            ->placeholder('16 digit angka NIK')
                             ->required()
                             ->length(16)
+                            ->minLength(16)
+                            ->maxLength(16)
                             ->rule('regex:/^[0-9]{16}$/')
+                            ->validationMessages([
+                                'regex' => 'NIK harus tepat 16 digit angka.',
+                                'min' => 'NIK harus tepat 16 digit angka.',
+                                'max' => 'NIK maksimal 16 digit angka.',
+                            ])
+                            ->extraInputAttributes([
+                                'inputmode' => 'numeric',
+                                'maxlength' => '16',
+                                'pattern' => '[0-9]{16}',
+                                'oninput' => "this.value = this.value.replace(/[^0-9]/g, '').slice(0, 16)",
+                            ])
                             ->live(onBlur: true)
                             ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nik),
                         TextInput::make('nama_lengkap')

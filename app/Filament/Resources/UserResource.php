@@ -74,12 +74,22 @@ class UserResource extends Resource
                 Select::make('role')
                     ->label('Akun dan Peran')
                     ->default(fn () => match (Wilayah::find(request()->integer('id_wilayah'))?->level) {
-                        'rw' => 'admin_rw', 'rt' => 'admin_rt', default => null
+                        'desa' => 'admin_desa', 'rw' => 'admin_rw', 'rt' => 'admin_rt', default => null
                     })
                     ->options(fn (?User $record): array => static::roleOptions($record))
                     ->required()
                     ->live()
                     ->afterStateUpdated(function (Set $set, ?string $state, Get $get) {
+                        $authUser = auth()->user();
+                        if ($authUser?->isAdminDesa() && $authUser->wilayah) {
+                            $desa = $authUser->wilayah;
+                            $ancestors = $desa->ancestors()->keyBy('level');
+                            $set('provinsi_id', $ancestors->get('provinsi')?->id);
+                            $set('kabkota_id', $ancestors->get('kabupaten_kota')?->id);
+                            $set('kecamatan_id', $ancestors->get('kecamatan')?->id);
+                            $set('kelurahan_id', $desa->id);
+                        }
+
                         if (in_array($state, [Role::Superadmin->value, Role::Admin->value], true)) {
                             $set('provinsi_id', null);
                             $set('kabkota_id', null);
@@ -88,6 +98,10 @@ class UserResource extends Resource
                             $set('rw_id', null);
                             $set('rt_id', null);
                             $set('id_wilayah', null);
+                        } elseif ($state === Role::AdminDesa->value) {
+                            $set('rw_id', null);
+                            $set('rt_id', null);
+                            $set('id_wilayah', $get('kelurahan_id'));
                         } elseif ($state === Role::AdminRw->value) {
                             $set('rt_id', null);
                             $set('id_wilayah', $get('rw_id'));
@@ -100,16 +114,19 @@ class UserResource extends Resource
             ])->columns(2)->columnSpanFull(),
             Section::make('Wilayah Penugasan')
                 ->description(fn (Get $get): string => match ($get('role')) {
+                    Role::AdminDesa->value => 'Pilih wilayah penugasan secara terurut dari Provinsi hingga Desa/Kelurahan.',
                     Role::AdminRw->value => 'Pilih wilayah penugasan secara terurut dari Provinsi hingga RW.',
                     Role::AdminRt->value => 'Pilih wilayah penugasan secara terurut dari Provinsi hingga RT.',
-                    default => 'Pilih peran Admin RW atau Admin RT untuk menentukan wilayah penugasan.',
+                    default => 'Pilih peran Admin Desa, Admin RW, atau Admin RT untuk menentukan wilayah penugasan.',
                 })
                 ->icon('heroicon-o-map-pin')
-                ->visible(fn (Get $get): bool => in_array($get('role'), [Role::AdminRw->value, Role::AdminRt->value], true))
+                ->visible(fn (Get $get): bool => in_array($get('role'), [Role::AdminDesa->value, Role::AdminRw->value, Role::AdminRt->value], true))
                 ->schema([
                     Select::make('provinsi_id')
                         ->label('1. Provinsi')
                         ->options(fn (): array => Wilayah::operasional()->where('level', 'provinsi')->orderBy('nama')->pluck('nama', 'id')->all())
+                        ->default(fn (): ?int => auth()->user()?->isAdminDesa() ? auth()->user()->wilayah?->ancestors()->firstWhere('level', 'provinsi')?->id : null)
+                        ->disabled(fn (): bool => (bool) auth()->user()?->isAdminDesa())
                         ->searchable()
                         ->preload()
                         ->live()
@@ -131,11 +148,12 @@ class UserResource extends Resource
                             ->pluck('nama', 'id')
                             ->all()
                         )
+                        ->default(fn (): ?int => auth()->user()?->isAdminDesa() ? auth()->user()->wilayah?->ancestors()->firstWhere('level', 'kabupaten_kota')?->id : null)
                         ->searchable()
                         ->preload()
                         ->live()
                         ->dehydrated(false)
-                        ->disabled(fn (Get $get): bool => blank($get('provinsi_id')))
+                        ->disabled(fn (Get $get): bool => (bool) auth()->user()?->isAdminDesa() || blank($get('provinsi_id')))
                         ->afterStateUpdated(function (Set $set): void {
                             $set('kecamatan_id', null);
                             $set('kelurahan_id', null);
@@ -152,11 +170,12 @@ class UserResource extends Resource
                             ->pluck('nama', 'id')
                             ->all()
                         )
+                        ->default(fn (): ?int => auth()->user()?->isAdminDesa() ? auth()->user()->wilayah?->ancestors()->firstWhere('level', 'kecamatan')?->id : null)
                         ->searchable()
                         ->preload()
                         ->live()
                         ->dehydrated(false)
-                        ->disabled(fn (Get $get): bool => blank($get('kabkota_id')))
+                        ->disabled(fn (Get $get): bool => (bool) auth()->user()?->isAdminDesa() || blank($get('kabkota_id')))
                         ->afterStateUpdated(function (Set $set): void {
                             $set('kelurahan_id', null);
                             $set('rw_id', null);
@@ -165,26 +184,34 @@ class UserResource extends Resource
                         }),
 
                     Select::make('kelurahan_id')
-                        ->label('4. Desa/Kelurahan')
+                        ->label(fn (Get $get): string => $get('role') === Role::AdminDesa->value ? '4. Desa/Kelurahan (Tujuan Penugasan)' : '4. Desa/Kelurahan')
                         ->options(fn (Get $get): array => Wilayah::operasional()->where('level', 'desa')
                             ->when($get('kecamatan_id'), fn (Builder $q, $kid): Builder => $q->where('parent_id', $kid))
                             ->orderBy('nama')
                             ->pluck('nama', 'id')
                             ->all()
                         )
+                        ->default(fn (): ?int => auth()->user()?->isAdminDesa() ? auth()->user()->id_wilayah : null)
                         ->searchable()
                         ->preload()
                         ->live()
                         ->dehydrated(false)
-                        ->disabled(fn (Get $get): bool => blank($get('kecamatan_id')))
-                        ->afterStateUpdated(function (Set $set): void {
-                            $set('rw_id', null);
-                            $set('rt_id', null);
-                            $set('id_wilayah', null);
+                        ->disabled(fn (Get $get): bool => (bool) auth()->user()?->isAdminDesa() || blank($get('kecamatan_id')))
+                        ->afterStateUpdated(function (?int $state, Set $set, Get $get): void {
+                            if ($get('role') === Role::AdminDesa->value) {
+                                $set('rw_id', null);
+                                $set('rt_id', null);
+                                $set('id_wilayah', $state);
+                            } else {
+                                $set('rw_id', null);
+                                $set('rt_id', null);
+                                $set('id_wilayah', null);
+                            }
                         }),
 
                     Select::make('rw_id')
                         ->label(fn (Get $get): string => $get('role') === Role::AdminRw->value ? '5. RW (Tujuan Penugasan)' : '5. RW')
+                        ->visible(fn (Get $get): bool => in_array($get('role'), [Role::AdminRw->value, Role::AdminRt->value], true))
                         ->options(function (Get $get): array {
                             $desaId = $get('kelurahan_id');
                             if (! $desaId) {
@@ -276,7 +303,10 @@ class UserResource extends Resource
                             $set('kecamatan_id', $ancestors->get('kecamatan')?->id);
                             $set('kelurahan_id', $ancestors->get('desa')?->id);
 
-                            if ($target->level === 'rw') {
+                            if ($target->level === 'desa') {
+                                $set('kelurahan_id', $target->id);
+                                $set('id_wilayah', $target->id);
+                            } elseif ($target->level === 'rw') {
                                 $set('rw_id', $target->id);
                                 $set('id_wilayah', $target->id);
                             } elseif ($target->level === 'rt') {
@@ -293,7 +323,12 @@ class UserResource extends Resource
                             $role = $get('role') ?: $record?->role?->value;
 
                             if (! $id) {
-                                $targetLevel = $role === Role::AdminRw->value ? 'RW' : ($role === Role::AdminRt->value ? 'RT' : null);
+                                $targetLevel = match ($role) {
+                                    Role::AdminDesa->value => 'Desa/Kelurahan',
+                                    Role::AdminRw->value => 'RW',
+                                    Role::AdminRt->value => 'RT',
+                                    default => null,
+                                };
                                 if (! $targetLevel) {
                                     return new HtmlString('<span class="text-sm text-gray-500">Pilih peran akun terlebih dahulu.</span>');
                                 }
@@ -355,6 +390,7 @@ class UserResource extends Resource
                     ->formatStateUsing(fn ($state): string => match ($state instanceof Role ? $state : Role::tryFrom((string) $state)) {
                         Role::Superadmin => 'Superadmin',
                         Role::Admin => 'Admin',
+                        Role::AdminDesa => 'Admin Desa / Kepala Desa',
                         Role::AdminRw => 'Admin RW',
                         Role::AdminRt => 'Admin RT',
                         default => (string) $state,
@@ -362,6 +398,7 @@ class UserResource extends Resource
                     ->color(fn ($state): string => match ($state instanceof Role ? $state : Role::tryFrom((string) $state)) {
                         Role::Superadmin => 'danger',
                         Role::Admin => 'warning',
+                        Role::AdminDesa => 'success',
                         Role::AdminRw => 'info',
                         Role::AdminRt => 'gray',
                         default => 'gray',
@@ -414,7 +451,7 @@ class UserResource extends Resource
             ]);
     }
 
-    // Hanya superadmin dan admin yang mengelola akun admin.
+    // Hanya superadmin, admin, dan admin_desa yang mengelola akun admin.
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery()->with(['wilayah.'.Wilayah::RELASI_LELUHUR]);
@@ -422,6 +459,18 @@ class UserResource extends Resource
 
         if ($user === null || $user->isSuperadmin() || $user->isAdmin()) {
             return $query;
+        }
+
+        if ($user->isAdminDesa()) {
+            $allowed = WilayahAccess::allowedWilayahIds($user) ?? [];
+
+            return $query->where(function (Builder $q) use ($user, $allowed): void {
+                $q->whereKey($user->id)
+                    ->orWhere(function (Builder $sub) use ($allowed): void {
+                        $sub->whereIn('role', [Role::AdminRw->value, Role::AdminRt->value])
+                            ->whereIn('id_wilayah', $allowed);
+                    });
+            });
         }
 
         return $query->whereRaw('1 = 0');

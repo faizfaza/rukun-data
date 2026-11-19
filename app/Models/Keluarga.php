@@ -92,6 +92,32 @@ class Keluarga extends Model
         return (bool) ($this->is_locked ?? false);
     }
 
+    /**
+     * Hanya menampilkan keluarga yang sudah lolos verifikasi berjenjang
+     * (menyembunyikan pengajuan KK baru yang masih berstatus menunggu_rw / menunggu_desa).
+     */
+    public function scopeTerverifikasi(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        try {
+            if (! \Illuminate\Support\Facades\Schema::hasTable('validasi_perubahan')) {
+                return $query;
+            }
+        } catch (\Throwable) {
+            return $query;
+        }
+
+        return $query->whereNotIn('keluarga.id', function ($sq): void {
+            $sq->select('id_record')
+                ->from('validasi_perubahan')
+                ->where('nama_tabel', 'keluarga')
+                ->where('aksi', 'created')
+                ->whereIn('status', [
+                    ValidasiPerubahan::STATUS_MENUNGGU_RW,
+                    ValidasiPerubahan::STATUS_MENUNGGU_DESA,
+                ]);
+        });
+    }
+
     // Pencarian persis via hash (PRD F7), termasuk baris soft-deleted agar
     // input ulang dapat menawarkan pemulihan (§8a), bukan duplikat baru.
     public static function findByNoKk(string $noKk): ?self

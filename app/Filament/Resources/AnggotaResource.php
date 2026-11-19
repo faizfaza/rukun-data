@@ -54,9 +54,23 @@ class AnggotaResource extends Resource
             Section::make('Identitas')->schema([
                 TextInput::make('nik')
                     ->label('NIK')
+                    ->placeholder('16 digit angka NIK')
                     ->required()
                     ->length(16)
+                    ->minLength(16)
+                    ->maxLength(16)
                     ->rule('regex:/^[0-9]{16}$/')
+                    ->validationMessages([
+                        'regex' => 'NIK harus tepat 16 digit angka.',
+                        'min' => 'NIK harus tepat 16 digit angka.',
+                        'max' => 'NIK maksimal 16 digit angka.',
+                    ])
+                    ->extraInputAttributes([
+                        'inputmode' => 'numeric',
+                        'maxlength' => '16',
+                        'pattern' => '[0-9]{16}',
+                        'oninput' => "this.value = this.value.replace(/[^0-9]/g, '').slice(0, 16)",
+                    ])
                     ->formatStateUsing(fn (?string $state, ?Anggota $record = null): ?string => $state ?? $record?->nik),
                 TextInput::make('nama_lengkap')
                     ->label('Nama lengkap')

@@ -23,6 +23,19 @@ class AuditLogPolicy
             return ! ($auditLog->pengguna?->isSuperadmin() ?? false);
         }
 
+        if ($user->isAdminDesa()) {
+            if ($auditLog->id_pengguna === $user->id) {
+                return true;
+            }
+            $allowedWilayah = WilayahAccess::allowedWilayahIds($user) ?? [];
+            $targetUser = $auditLog->pengguna;
+            if ($targetUser && ($targetUser->isAdminRw() || $targetUser->isAdminRt()) && in_array($targetUser->id_wilayah, $allowedWilayah, true)) {
+                return true;
+            }
+
+            return true;
+        }
+
         if ($user->isAdminRt()) {
             return $auditLog->id_pengguna === $user->id;
         }

@@ -24,16 +24,16 @@ class KeluargaPolicy
 
     public function create(User $user): bool
     {
-        return $user->isSuperadmin() || $user->isAdmin() || $user->isAdminRw() || $user->isAdminRt();
+        return $user->isSuperadmin() || $user->isAdmin() || $user->isAdminDesa() || $user->isAdminRw() || $user->isAdminRt();
     }
 
     public function update(User $user, Keluarga $keluarga): bool
     {
-        if ($keluarga->isLocked() && ! $user->isSuperadmin()) {
+        if ($keluarga->isLocked() && ! $user->isSuperadmin() && ! $user->isAdminDesa()) {
             return false;
         }
 
-        return ($user->isSuperadmin() || $user->isAdmin() || $user->isAdminRw() || $user->isAdminRt())
+        return ($user->isSuperadmin() || $user->isAdmin() || $user->isAdminDesa() || $user->isAdminRw() || $user->isAdminRt())
             && $this->inWilayah($user, $keluarga->id_wilayah);
     }
 

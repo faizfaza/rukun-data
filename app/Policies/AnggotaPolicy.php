@@ -22,16 +22,16 @@ class AnggotaPolicy
 
     public function create(User $user): bool
     {
-        return $user->isSuperadmin() || $user->isAdmin() || $user->isAdminRw() || $user->isAdminRt();
+        return $user->isSuperadmin() || $user->isAdmin() || $user->isAdminDesa() || $user->isAdminRw() || $user->isAdminRt();
     }
 
     public function update(User $user, Anggota $anggota): bool
     {
-        if ($anggota->keluarga?->isLocked() && ! $user->isSuperadmin()) {
+        if ($anggota->keluarga?->isLocked() && ! $user->isSuperadmin() && ! $user->isAdminDesa()) {
             return false;
         }
 
-        return ($user->isSuperadmin() || $user->isAdmin() || $user->isAdminRw() || $user->isAdminRt())
+        return ($user->isSuperadmin() || $user->isAdmin() || $user->isAdminDesa() || $user->isAdminRw() || $user->isAdminRt())
             && $this->inWilayah($user, $anggota->keluarga->id_wilayah);
     }
 

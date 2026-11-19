@@ -12,17 +12,33 @@ class UserPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->isSuperadmin() || $user->isAdmin();
+        return $user->isSuperadmin() || $user->isAdmin() || $user->isAdminDesa();
     }
 
     public function view(User $user, User $target): bool
     {
-        return $user->isSuperadmin() || $user->isAdmin();
+        if ($user->isSuperadmin() || $user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isAdminDesa()) {
+            if ($user->is($target)) {
+                return true;
+            }
+
+            $allowed = WilayahAccess::allowedWilayahIds($user) ?? [];
+
+            return ($target->isAdminRw() || $target->isAdminRt())
+                && $target->id_wilayah !== null
+                && in_array($target->id_wilayah, $allowed, true);
+        }
+
+        return false;
     }
 
     public function create(User $user): bool
     {
-        return $user->isSuperadmin() || $user->isAdmin();
+        return $user->isSuperadmin() || $user->isAdmin() || $user->isAdminDesa();
     }
 
     public function update(User $user, User $target): bool
@@ -37,6 +53,14 @@ class UserPolicy
 
         if ($user->isAdmin()) {
             return ! $target->isSuperadmin();
+        }
+
+        if ($user->isAdminDesa()) {
+            $allowed = WilayahAccess::allowedWilayahIds($user) ?? [];
+
+            return ($target->isAdminRw() || $target->isAdminRt())
+                && $target->id_wilayah !== null
+                && in_array($target->id_wilayah, $allowed, true);
         }
 
         return false;
@@ -54,7 +78,7 @@ class UserPolicy
             return false;
         }
 
-        // Superadmin boleh menonaktifkan akun admin, admin_rw, dan admin_rt.
+        // Superadmin boleh menonaktifkan akun admin, admin_desa, admin_rw, dan admin_rt.
         if ($user->isSuperadmin()) {
             return true;
         }
@@ -62,6 +86,15 @@ class UserPolicy
         // Admin tidak dapat menonaktifkan admin lain dan tidak dapat menonaktifkan superadmin.
         if ($user->isAdmin()) {
             return ! $target->isAdmin() && ! $target->isSuperadmin();
+        }
+
+        // Admin Desa boleh menonaktifkan Admin RW dan Admin RT di dalam desanya.
+        if ($user->isAdminDesa()) {
+            $allowed = WilayahAccess::allowedWilayahIds($user) ?? [];
+
+            return ($target->isAdminRw() || $target->isAdminRt())
+                && $target->id_wilayah !== null
+                && in_array($target->id_wilayah, $allowed, true);
         }
 
         return false;

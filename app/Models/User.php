@@ -71,7 +71,9 @@ class User extends Authenticatable implements FilamentUser
 
     public function setRoleAttribute(mixed $value): void
     {
-        if ($value === 'rw') {
+        if (in_array($value, ['desa', 'kepala_desa'], true)) {
+            $value = Role::AdminDesa;
+        } elseif ($value === 'rw') {
             $value = Role::AdminRw;
         } elseif ($value === 'rt') {
             $value = Role::AdminRt;
@@ -90,6 +92,16 @@ class User extends Authenticatable implements FilamentUser
     public function isAdmin(): bool
     {
         return $this->role === Role::Admin;
+    }
+
+    public function isAdminDesa(): bool
+    {
+        return $this->role === Role::AdminDesa;
+    }
+
+    public function isDesa(): bool
+    {
+        return $this->isAdminDesa();
     }
 
     public function isAdminRw(): bool
@@ -112,11 +124,26 @@ class User extends Authenticatable implements FilamentUser
         return $this->isAdminRt();
     }
 
+    public function desaWilayah(): ?Wilayah
+    {
+        if (! $this->id_wilayah) {
+            return null;
+        }
+
+        $w = Wilayah::find($this->id_wilayah);
+        if (! $w) {
+            return null;
+        }
+
+        return $w->desaInduk();
+    }
+
     public function bolehLihatDataPenuh(): bool
     {
         return match ($this->role) {
-            Role::Superadmin, Role::Admin, Role::AdminRt => true,
-            Role::AdminRw => (bool) config('sensitif.rw_lihat_penuh', false),
+            Role::Superadmin, Role::Admin, Role::AdminDesa, Role::AdminRt => true,
+            Role::AdminRw => (bool) ($this->desaWilayah()?->pengaturanDesa('rw_lihat_penuh') ?: config('sensitif.rw_lihat_penuh', false)),
+            default => false,
         };
     }
 

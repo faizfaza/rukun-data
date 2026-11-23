@@ -47,6 +47,7 @@ class User extends Authenticatable implements FilamentUser
     {
         return [
             'email_verified_at' => 'datetime',
+            'panduan_selesai_at' => 'datetime',
             'password' => 'hashed',
             'identitas' => 'encrypted:array',
             'role' => Role::class,

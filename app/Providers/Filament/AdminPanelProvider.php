@@ -9,6 +9,7 @@ use App\Filament\Widgets\KeluargaPerRtChart;
 use App\Filament\Widgets\PekerjaanChart;
 use App\Filament\Widgets\PendidikanChart;
 use App\Filament\Widgets\RingkasanWidget;
+use App\Http\Middleware\WajibPanduan;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -98,6 +99,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                WajibPanduan::class,
             ]);
     }
 }

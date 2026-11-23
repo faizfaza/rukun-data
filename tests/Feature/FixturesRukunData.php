@@ -48,9 +48,9 @@ trait FixturesRukunData
         return compact('negara', 'provinsi', 'kabupaten', 'kecamatan', 'desa', 'rw', 'rt1', 'rt2');
     }
 
-    protected function makeUser(string $username, string $role, ?int $wilayahId): User
+    protected function makeUser(string $username, string $role, ?int $wilayahId, bool $panduanSelesai = true): User
     {
-        return User::create([
+        return User::forceCreate([
             'name' => $username,
             'username' => $username,
             'email' => "{$username}@uji.local",
@@ -58,6 +58,7 @@ trait FixturesRukunData
             'role' => $role,
             'id_wilayah' => $wilayahId,
             'is_active' => true,
+            'panduan_selesai_at' => $panduanSelesai ? now() : null,
         ]);
     }
 

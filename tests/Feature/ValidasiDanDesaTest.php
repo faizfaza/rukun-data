@@ -8,6 +8,7 @@ use App\Filament\Resources\AuditLogResource;
 use App\Filament\Resources\KeluargaResource\Pages\ViewKeluarga;
 use App\Filament\Resources\UserResource\Pages\CreateUser;
 use App\Filament\Resources\ValidasiPerubahanResource;
+use App\Models\NotifikasiValidasi;
 use App\Models\ValidasiPerubahan;
 use App\Models\Wilayah;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -91,17 +92,58 @@ class ValidasiDanDesaTest extends TestCase
             ->assertSee('Kembali ke Dashboard')
             ->assertSee('Jl. Pengajuan Baru No. 99');
 
-        // Setelah disetujui RW (menunggu Desa), data resmi MASIH alamat lama
+        // Setelah disetujui RW (menunggu Desa), data resmi MASIH alamat lama + Admin RT & Admin Desa menerima notifikasi
         $this->actingAs($adminRw);
         $tiketEdit->setujuiOlehRw($adminRw, 'Alamat baru sudah dicek RW');
         $this->assertSame(ValidasiPerubahan::STATUS_MENUNGGU_DESA, $tiketEdit->fresh()->status);
         $this->assertSame($alamatLama, $keluarga->fresh()->alamat);
 
+        $notifRwKeRt = NotifikasiValidasi::where('id_pengguna', $adminRt->id)
+            ->where('id_validasi', $tiketEdit->id)
+            ->where('jenis', NotifikasiValidasi::JENIS_DISETUJUI_RW)
+            ->first();
+        $this->assertNotNull($notifRwKeRt);
+        $this->assertFalse($notifRwKeRt->sudahDibaca());
+
+        $this->assertDatabaseHas('notifikasi_validasi', [
+            'id_pengguna' => $adminDesa->id,
+            'id_validasi' => $tiketEdit->id,
+            'jenis' => NotifikasiValidasi::JENIS_SIAP_DISAHKAN_DESA,
+        ]);
+
         // Baru setelah Kepala Desa mengesahkan, data resmi berubah ke alamat baru (dan terdekripsi bersih)
+        // serta Admin RT dan Admin RW verifikator menerima notifikasi 'disetujui_desa'
         $this->actingAs($adminDesa);
         $tiketEdit->fresh()->setujuiOlehDesa($adminDesa, 'Disahkan Kepala Desa');
         $this->assertSame(ValidasiPerubahan::STATUS_DISETUJUI, $tiketEdit->fresh()->status);
         $this->assertSame('Jl. Pengajuan Baru No. 99', $keluarga->fresh()->alamat);
+
+        $notifDesaKeRt = NotifikasiValidasi::where('id_pengguna', $adminRt->id)
+            ->where('id_validasi', $tiketEdit->id)
+            ->where('jenis', NotifikasiValidasi::JENIS_DISETUJUI_DESA)
+            ->first();
+        $this->assertNotNull($notifDesaKeRt);
+
+        $this->assertDatabaseHas('notifikasi_validasi', [
+            'id_pengguna' => $adminRw->id,
+            'id_validasi' => $tiketEdit->id,
+            'jenis' => NotifikasiValidasi::JENIS_DISETUJUI_DESA,
+        ]);
+
+        // Admin RT membuka halaman Pusat Notifikasi lalu mengklik notifikasi -> otomatis ditandai dibaca & diarahkan ke halaman konfirmasi
+        $this->flushSession();
+        $this->actingAs($adminRt);
+        $this->get('/admin/notifikasi')
+            ->assertOk()
+            ->assertSee('Verifikasi Berhasil');
+
+        $this->get(route('notifikasi-validasi.buka', $notifDesaKeRt))
+            ->assertRedirect('/admin/konfirmasi-pengajuan?tiket='.$tiketEdit->id);
+        $this->assertTrue($notifDesaKeRt->fresh()->sudahDibaca());
+
+        $this->get('/admin/konfirmasi-pengajuan?tiket='.$tiketEdit->id)
+            ->assertOk()
+            ->assertSee('Verifikasi Berhasil');
 
         // 5. Admin RT mengajukan pindah lewat tombol Ajukan Pindah di ViewKeluarga
         $this->actingAs($adminRt);

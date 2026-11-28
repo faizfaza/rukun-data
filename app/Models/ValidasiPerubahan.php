@@ -222,6 +222,45 @@ class ValidasiPerubahan extends Model
             'waktu_verifikasi_rw' => now(),
             'catatan_rw' => $catatan,
         ]);
+
+        $labelKk = $this->labelKeluargaTerkait();
+        $tautanDetail = '/admin/konfirmasi-pengajuan?tiket='.$this->id;
+        $catatanText = filled($catatan) ? " Catatan RW: {$catatan}" : '';
+
+        // 1. Notifikasi ke pengaju (Admin RT)
+        if ($this->id_pengguna && $this->id_pengguna !== $user->id) {
+            NotifikasiValidasi::kirim(
+                $this->id_pengguna,
+                $this->id,
+                NotifikasiValidasi::JENIS_DISETUJUI_RW,
+                'Disetujui Admin RW · Diteruskan ke Desa',
+                "Pengajuan {$labelKk} telah diverifikasi oleh {$user->name} (Admin RW) dan diteruskan ke Kepala Desa untuk pengesahan akhir.{$catatanText}",
+                $tautanDetail,
+            );
+        }
+
+        // 2. Notifikasi ke Admin Desa / Kepala Desa terkait
+        if ($this->id_wilayah_desa) {
+            $adminDesaIds = User::query()
+                ->where('role', \App\Enums\Role::AdminDesa->value)
+                ->where('id_wilayah', $this->id_wilayah_desa)
+                ->where('is_active', true)
+                ->pluck('id');
+
+            foreach ($adminDesaIds as $desaUserId) {
+                if ((int) $desaUserId === $user->id) {
+                    continue;
+                }
+                NotifikasiValidasi::kirim(
+                    (int) $desaUserId,
+                    $this->id,
+                    NotifikasiValidasi::JENIS_SIAP_DISAHKAN_DESA,
+                    'Siap Disahkan · Lolos Verifikasi RW',
+                    "Pengajuan {$labelKk} telah diverifikasi oleh {$user->name} (Admin RW) dan kini menunggu pengesahan akhir Desa.",
+                    '/admin/validasi-perubahan',
+                );
+            }
+        }
     }
 
     public function setujuiOlehDesa(User $user, ?string $catatan = null): void
@@ -229,6 +268,8 @@ class ValidasiPerubahan extends Model
         if ($this->status !== self::STATUS_MENUNGGU_DESA) {
             throw new \LogicException('Pengajuan harus diverifikasi oleh Admin RW terlebih dahulu sebelum disahkan oleh Desa.');
         }
+
+        $verifikatorRwSebelumnya = $this->id_verifikator_rw;
 
         $updates = [
             'status' => self::STATUS_DISETUJUI,
@@ -247,6 +288,34 @@ class ValidasiPerubahan extends Model
 
         $this->terapkanPerubahanSaatDisahkan();
         $this->terapkanDataPindahJikaAda();
+
+        $labelKk = $this->labelKeluargaTerkait();
+        $tautanDetail = '/admin/konfirmasi-pengajuan?tiket='.$this->id;
+        $catatanText = filled($catatan) ? " Catatan Desa: {$catatan}" : '';
+
+        // 1. Notifikasi ke pengaju (Admin RT atau Admin RW) bahwa perubahan sudah resmi masuk database
+        if ($this->id_pengguna && $this->id_pengguna !== $user->id) {
+            NotifikasiValidasi::kirim(
+                $this->id_pengguna,
+                $this->id,
+                NotifikasiValidasi::JENIS_DISETUJUI_DESA,
+                'Verifikasi Berhasil · Perubahan Sudah Masuk',
+                "Pengajuan {$labelKk} telah disahkan oleh {$user->name} (Desa). Perubahan kini resmi tersimpan di data utama.{$catatanText}",
+                $tautanDetail,
+            );
+        }
+
+        // 2. Notifikasi ke Admin RW verifikator (jika berbeda dari pengaju & verifikator Desa)
+        if ($verifikatorRwSebelumnya && $verifikatorRwSebelumnya !== $this->id_pengguna && $verifikatorRwSebelumnya !== $user->id) {
+            NotifikasiValidasi::kirim(
+                $verifikatorRwSebelumnya,
+                $this->id,
+                NotifikasiValidasi::JENIS_DISETUJUI_DESA,
+                'Pengajuan RT Disahkan Desa · Data Masuk',
+                "Pengajuan {$labelKk} yang Anda verifikasi telah resmi disahkan oleh {$user->name} (Desa) dan perubahan sudah masuk ke database.{$catatanText}",
+                $tautanDetail,
+            );
+        }
     }
 
     /**
@@ -293,11 +362,14 @@ class ValidasiPerubahan extends Model
 
     public function tolak(User $user, string $alasan): void
     {
+        $ditolakRw = $this->status === self::STATUS_MENUNGGU_RW && $user->isAdminRw();
+        $verifikatorRwSebelumnya = $this->id_verifikator_rw;
+
         $updates = [
             'status' => self::STATUS_DITOLAK,
         ];
 
-        if ($this->status === self::STATUS_MENUNGGU_RW && $user->isAdminRw()) {
+        if ($ditolakRw) {
             $updates['id_verifikator_rw'] = $user->id;
             $updates['waktu_verifikasi_rw'] = now();
             $updates['catatan_rw'] = $alasan;
@@ -310,6 +382,31 @@ class ValidasiPerubahan extends Model
         $this->update($updates);
 
         $this->rollbackPerubahan();
+
+        $labelKk = $this->labelKeluargaTerkait();
+        $tautanDetail = '/admin/konfirmasi-pengajuan?tiket='.$this->id;
+
+        if ($this->id_pengguna && $this->id_pengguna !== $user->id) {
+            NotifikasiValidasi::kirim(
+                $this->id_pengguna,
+                $this->id,
+                $ditolakRw ? NotifikasiValidasi::JENIS_DITOLAK_RW : NotifikasiValidasi::JENIS_DITOLAK_DESA,
+                $ditolakRw ? 'Pengajuan Ditolak oleh Admin RW' : 'Pengajuan Ditolak oleh Desa',
+                "Pengajuan {$labelKk} ditolak oleh {$user->name}. Alasan: {$alasan}. Data utama tidak berubah.",
+                $tautanDetail,
+            );
+        }
+
+        if (! $ditolakRw && $verifikatorRwSebelumnya && $verifikatorRwSebelumnya !== $this->id_pengguna && $verifikatorRwSebelumnya !== $user->id) {
+            NotifikasiValidasi::kirim(
+                $verifikatorRwSebelumnya,
+                $this->id,
+                NotifikasiValidasi::JENIS_DITOLAK_DESA,
+                'Pengajuan RT Ditolak oleh Desa',
+                "Pengajuan {$labelKk} yang Anda teruskan ditolak pada tahap Desa oleh {$user->name}. Alasan: {$alasan}.",
+                $tautanDetail,
+            );
+        }
     }
 
     protected function terapkanDataPindahJikaAda(): void

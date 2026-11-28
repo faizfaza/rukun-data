@@ -80,8 +80,10 @@ class PanduanTest extends TestCase
             return;
         }
 
+        $peranTersedia = implode(', ', array_map(fn (Role $item): string => $item->label(), $role->bolehMembuat()));
+
         $tur->call('lanjut')->assertSee('Buat akun dari Kelola Admin')
-            ->assertSee($role === Role::Admin ? 'Peran yang tersedia: Admin RW, Admin RT.' : 'Peran yang tersedia: Superadmin, Admin, Admin RW, Admin RT.');
+            ->assertSee("Peran yang tersedia: {$peranTersedia}.");
     }
 
     public static function peran(): array
@@ -89,6 +91,7 @@ class PanduanTest extends TestCase
         return [
             [Role::AdminRt, 'rt1', 'Buka RT penugasan', 3],
             [Role::AdminRw, 'rw', 'Pilih RT di bawah RW Anda', 4],
+            [Role::AdminDesa, 'desa', 'Pantau RW & RT di Desa Anda', 5],
             [Role::Admin, null, 'Temukan RT yang dituju', 5],
             [Role::Superadmin, null, 'Temukan RT yang dituju', 5],
         ];

@@ -14,39 +14,41 @@
  */
 :root {
     /* Header / Topbar Token */
-    --rd-topbar-height: 3.5rem;
+    --rd-topbar-height: 3.75rem;
     --topbar-height: var(--rd-topbar-height);
 
-    /* Sidebar */
-    --rd-sidebar: #0b2e2b;
-    --rd-sidebar-hover: rgb(255 255 255 / 0.06);
-    --rd-sidebar-active: rgb(45 212 191 / 0.14);
-    --rd-sidebar-text: rgb(255 255 255 / 0.78);
-    --rd-sidebar-muted: rgb(255 255 255 / 0.5);
-    --rd-sidebar-line: rgb(255 255 255 / 0.08);
+    /* Sidebar — Putih Bersih dengan Shadow Profesional (selaras rukundata.id) */
+    --rd-sidebar: #ffffff;
+    --rd-sidebar-hover: #f0f7ff;
+    --rd-sidebar-active: #ebf4ff;
+    --rd-sidebar-text: #334155;
+    --rd-sidebar-muted: #64748b;
+    --rd-sidebar-line: #e5ecf4;
 
-    /* Brand & aksi */
-    --rd-primary: #0f766e;
-    --rd-primary-hover: #115e59;
-    --rd-primary-soft: #ecfdf5;
-    --rd-primary-border: #c7ede7;
-    --rd-primary-ring: rgb(15 118 110 / 0.18);
+    /* Brand & aksi — RUKUNDATA Navy Blue + Soft Ice-Blue Pill + Leaf Green */
+    --rd-primary: #0b4a7d;
+    --rd-primary-hover: #093c66;
+    --rd-primary-soft: #ebf4ff;
+    --rd-primary-border: #cbe1fa;
+    --rd-primary-ring: rgb(11 74 125 / 0.18);
+    --rukun-teal: #0b4a7d;
+    --rukun-teal-light: #38bdf8;
 
-    /* Permukaan */
-    --rd-canvas: #f6f8f7;
+    /* Permukaan — kontras nyaman di mata (tidak terlalu silau, kartu & tombol menonjol jelas) */
+    --rd-canvas: #edf2f8;
     --rd-surface: #ffffff;
-    --rd-surface-muted: #f1f4f3;
-    --rd-line: #e2e8e6;
-    --rd-line-strong: #cbd6d3;
+    --rd-surface-muted: #e6eef7;
+    --rd-line: #d3dfec;
+    --rd-line-strong: #b4c7dc;
 
-    /* Teks */
-    --rd-ink: #1b2a28;
-    --rd-ink-soft: #445451;
-    --rd-muted: #5f6f6d;
-    --rd-muted-soft: #8a9996;
+    /* Teks — Deep Navy headings & slate body berkontras tinggi */
+    --rd-ink: #0f2643;
+    --rd-ink-soft: #2c4057;
+    --rd-muted: #4b6078;
+    --rd-muted-soft: #64748b;
 
-    /* Status */
-    --rd-success: #15803d;
+    /* Status — Leaf Green RUKUNDATA */
+    --rd-success: #2e8b22;
     --rd-success-soft: #f0fdf4;
     --rd-success-border: #bbf7d0;
     --rd-warning: #b45309;
@@ -55,17 +57,18 @@
     --rd-danger: #b42318;
     --rd-danger-soft: #fef3f2;
     --rd-danger-border: #fecdca;
-    --rd-info: #0e7490;
-    --rd-info-soft: #ecfeff;
-    --rd-info-border: #a5f3fc;
+    --rd-info: #0b5694;
+    --rd-info-soft: #ebf4ff;
+    --rd-info-border: #cbe1fa;
 
-    /* Bentuk */
-    --rd-radius-sidebar: 1.25rem;
-    --rd-radius-xl: 12px;
+    /* Bentuk — Sidebar full edge (0px), kartu & tombol dengan shadow tegas */
+    --rd-radius-sidebar: 0px;
+    --rd-radius-xl: 14px;
     --rd-radius-lg: 10px;
     --rd-radius-md: 8px;
-    --rd-shadow-card: 0 1px 2px rgb(16 24 40 / 0.05);
-    --rd-shadow-pop: 0 12px 32px -12px rgb(16 24 40 / 0.22);
+    --rd-shadow-card: 0 3px 10px -2px rgb(15 38 67 / 0.08), 0 1px 3px rgb(15 38 67 / 0.05);
+    --rd-shadow-btn: 0 2px 5px rgb(15 38 67 / 0.11), 0 1px 2px rgb(15 38 67 / 0.07);
+    --rd-shadow-pop: 0 12px 32px -12px rgb(15 38 67 / 0.24);
     --rd-ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -111,16 +114,9 @@ html.fi {
 
 .fi-sidebar {
     background-color: var(--rd-sidebar);
-    border-inline-end: 0;
-    box-shadow: none;
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-    border-top-right-radius: var(--rd-radius-sidebar);
-    border-bottom-right-radius: var(--rd-radius-sidebar);
-    border-start-start-radius: 0;
-    border-end-start-radius: 0;
-    border-start-end-radius: var(--rd-radius-sidebar);
-    border-end-end-radius: var(--rd-radius-sidebar);
+    border-inline-end: 1px solid var(--rd-sidebar-line);
+    box-shadow: 4px 0 24px -10px rgb(15 38 67 / 0.1);
+    border-radius: 0;
     overflow-x: clip;
 }
 
@@ -147,7 +143,7 @@ html.fi {
 
 .fi-sidebar-header .fi-logo {
     align-items: center;
-    color: #ffffff;
+    color: var(--rd-ink);
     font-size: 0.95rem;
     font-weight: 600;
     letter-spacing: -0.02em;
@@ -224,22 +220,27 @@ html.fi {
 
 .fi-sidebar-item.fi-sidebar-item-has-url > .fi-sidebar-item-btn:hover {
     background-color: var(--rd-sidebar-hover);
-    color: #ffffff;
+    color: var(--rd-primary);
 }
 
 .fi-sidebar-item.fi-sidebar-item-has-url > .fi-sidebar-item-btn:hover > .fi-icon {
-    color: #ffffff;
+    color: var(--rd-primary);
+}
+
+.fi-sidebar-item.fi-sidebar-item-has-url > .fi-sidebar-item-btn:active {
+    background-color: #dbeafe;
+    color: var(--rd-primary);
 }
 
 .fi-sidebar-item.fi-active > .fi-sidebar-item-btn {
     background-color: var(--rd-sidebar-active);
-    box-shadow: none;
-    color: #ccfbf1;
+    box-shadow: inset 0 0 0 1px #d4e6fc;
+    color: var(--rd-primary);
 }
 
 .fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-icon,
 .fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-sidebar-item-label {
-    color: #ccfbf1;
+    color: var(--rd-primary);
     font-weight: 600;
 }
 
@@ -249,13 +250,70 @@ html.fi {
 }
 
 .fi-sidebar .fi-user-menu-trigger {
-    background-color: rgb(255 255 255 / 0.06);
+    background-color: #f8fbff;
     border: 1px solid var(--rd-sidebar-line);
     border-radius: var(--rd-radius-md);
-    color: #ffffff;
+    color: var(--rd-ink);
     gap: 0.55rem;
     padding: 0.45rem 0.55rem;
     width: 100%;
+}
+
+/* Tombol interaktif — berbayangan tegas (ramah pengguna berumur) & biru RUKUNDATA */
+.fi-btn {
+    box-shadow: var(--rd-shadow-btn);
+    transition:
+        background-color 140ms var(--rd-ease),
+        border-color 140ms var(--rd-ease),
+        color 140ms var(--rd-ease),
+        box-shadow 140ms var(--rd-ease),
+        transform 120ms var(--rd-ease);
+}
+
+.fi-btn.fi-color-primary,
+.fi-btn.fi-btn-color-primary {
+    box-shadow: 0 3px 8px -2px rgb(11 74 125 / 0.42), 0 1px 2px rgb(11 74 125 / 0.22);
+}
+
+.fi-btn.fi-color-primary:active,
+.fi-btn.fi-btn-color-primary:active {
+    background-color: #072f52 !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 0 3px rgb(11 74 125 / 0.25);
+}
+
+.fi-btn.fi-color-gray,
+.fi-btn.fi-btn-color-gray {
+    background-color: #ffffff;
+    border: 1px solid var(--rd-line-strong) !important;
+    color: var(--rd-ink);
+    box-shadow: var(--rd-shadow-btn);
+}
+
+.fi-btn.fi-color-gray:hover,
+.fi-btn.fi-btn-color-gray:hover {
+    background-color: #f0f7ff;
+    border-color: #60a5fa !important;
+    color: var(--rd-primary);
+    box-shadow: 0 4px 10px -2px rgb(11 74 125 / 0.16);
+}
+
+.fi-btn.fi-color-gray:active,
+.fi-btn.fi-btn-color-gray:active {
+    background-color: #dbeafe;
+    border-color: #3b82f6 !important;
+    color: #093c66;
+}
+
+/* Header tabel biru tua lembut agar tidak terlalu terang & mudah dibaca */
+.fi-ta-header-cell,
+.fi-ta-table thead tr {
+    background-color: #e4eef9 !important;
+}
+
+.fi-ta-header-cell-label {
+    color: #0f2643 !important;
+    font-weight: 700 !important;
 }
 
 body:has([data-panduan-sorot="jelajah"]) .fi-sidebar-item-btn[href$="/jelajah"],
@@ -464,13 +522,13 @@ body:has([data-panduan-sorot="pengguna"]) .fi-sidebar-item-btn[href$="/pengguna"
 }
 
 .fi-fo-repeater-item-header {
-    background-color: #f0fdfa !important;
-    border-bottom: 1.5px solid #99f6e4 !important;
+    background-color: #f0f7ff !important;
+    border-bottom: 1.5px solid #cbe1fa !important;
     padding: 0.85rem 1.15rem !important;
 }
 
 .fi-fo-repeater-item-header-label {
-    color: #0f766e !important;
+    color: #0b4a7d !important;
     font-size: 0.95rem !important;
     font-weight: 700 !important;
     letter-spacing: -0.01em;
@@ -1223,6 +1281,104 @@ body:has([data-panduan-sorot="pengguna"]) .fi-sidebar-item-btn[href$="/pengguna"
         scroll-behavior: auto !important;
         transition-duration: 0.01ms !important;
     }
+}
+
+/* -------------------------------------------------------- Dashboard Flow */
+
+.rd-dash-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.rd-dash-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.rd-dash-section-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding-bottom: 0.55rem;
+    border-bottom: 1px solid var(--rd-line);
+}
+
+.rd-dash-eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--rd-primary);
+}
+
+.rd-dash-section-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--rd-ink);
+    line-height: 1.3;
+}
+
+.rd-dash-section-sub {
+    font-size: 0.8125rem;
+    color: var(--rd-muted);
+    line-height: 1.4;
+}
+
+.rd-dash-grid-4 {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+}
+
+@media (min-width: 640px) {
+    .rd-dash-grid-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1024px) {
+    .rd-dash-grid-4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+.rd-dash-grid-2 {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+}
+
+@media (min-width: 1024px) {
+    .rd-dash-grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* ------------------------------------------------------------ Login Page */
+
+.fi-simple-layout {
+    background: linear-gradient(180deg, #ffffff 0%, #f4f8fc 100%);
+}
+
+.fi-simple-main {
+    background-color: #ffffff;
+    border: 1px solid var(--rd-line);
+    border-radius: 16px;
+    box-shadow: 0 12px 32px -16px rgb(15 38 67 / 0.14);
+}
+
+.fi-simple-header-heading {
+    color: var(--rd-ink);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+.fi-simple-header .fi-logo {
+    height: auto !important;
+    margin-bottom: 0.25rem;
 }
 
 /* Mobile View-Only Mode (Notulensi Pak Sutiyo: fungsi mobile hanya bisa melihat saja) */

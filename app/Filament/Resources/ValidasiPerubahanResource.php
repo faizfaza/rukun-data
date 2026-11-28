@@ -68,7 +68,7 @@ class ValidasiPerubahanResource extends Resource
 
     public static function getNavigationBadgeColor(): ?string
     {
-        return 'warning';
+        return 'primary';
     }
 
     public static function getEloquentQuery(): Builder

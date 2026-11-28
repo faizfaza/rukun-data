@@ -109,12 +109,12 @@
                     <button
                         type="button"
                         @click="openFilterModal = true"
-                        class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border {{ $this->jumlahFilterAktif > 0 ? 'border-teal-300 bg-teal-50 text-teal-700' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50' }} text-xs font-semibold shadow-sm transition"
+                        class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border {{ $this->jumlahFilterAktif > 0 ? 'border-[#93c5fd] bg-[#ebf4ff] text-[#0b4a7d]' : 'border-[#e5ecf4] bg-white text-[#334155] hover:bg-[#f0f7ff]' }} text-xs font-semibold shadow-sm transition"
                     >
-                        <x-filament::icon icon="heroicon-m-funnel" class="h-4 w-4 {{ $this->jumlahFilterAktif > 0 ? 'text-teal-600' : 'text-gray-500' }}" />
+                        <x-filament::icon icon="heroicon-m-funnel" class="h-4 w-4 {{ $this->jumlahFilterAktif > 0 ? 'text-[#0b4a7d]' : 'text-[#64748b]' }}" />
                         <span>Filter</span>
                         @if ($this->jumlahFilterAktif > 0)
-                            <span class="flex h-5 w-5 items-center justify-center rounded-full bg-teal-600 text-[10px] font-bold text-white shadow-sm">
+                            <span class="flex h-5 w-5 items-center justify-center rounded-full bg-[#0b4a7d] text-[10px] font-bold text-white shadow-sm">
                                 {{ $this->jumlahFilterAktif }}
                             </span>
                         @endif
@@ -139,72 +139,72 @@
                         <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400 mr-1">Filter Aktif:</span>
 
                         @if (filled($statusFilter))
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#ebf4ff] text-[#0b4a7d] border border-[#cbe1fa]">
                                 <span>Status: <strong>{{ $statusFilter === 'aktif' ? 'Wilayah Aktif' : ($statusFilter === 'nonaktif' ? 'Nonaktif' : 'Induk Down') }}</strong></span>
-                                <button type="button" wire:click="hapusFilterStatus" class="text-emerald-400 hover:text-emerald-700">
+                                <button type="button" wire:click="hapusFilterStatus" class="text-[#0b4a7d]/60 hover:text-[#0b4a7d]">
                                     <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
                                 </button>
                             </span>
                         @endif
 
                         @if ($this->namaWilayahTerpilih && ! $this->hasGranularFilter())
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#ebf4ff] text-[#0b4a7d] border border-[#cbe1fa]">
                                 <span>Wilayah: <strong>{{ $this->namaWilayahTerpilih }}</strong></span>
-                                <button type="button" wire:click="hapusFilterLompat" class="text-teal-400 hover:text-teal-700">
+                                <button type="button" wire:click="hapusFilterLompat" class="text-[#0b4a7d]/60 hover:text-[#0b4a7d]">
                                     <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
                                 </button>
                             </span>
                         @endif
 
                         @if ($filterProvinsi && $this->namaFilterProvinsi)
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#ebf4ff] text-[#0b4a7d] border border-[#cbe1fa]">
                                 <span>Provinsi: <strong>{{ $this->namaFilterProvinsi }}</strong></span>
-                                <button type="button" wire:click="hapusFilterProvinsi" class="text-teal-400 hover:text-teal-700">
+                                <button type="button" wire:click="hapusFilterProvinsi" class="text-[#0b4a7d]/60 hover:text-[#0b4a7d]">
                                     <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
                                 </button>
                             </span>
                         @endif
 
                         @if ($filterKabkota && $this->namaKabkotaTerpilih)
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#ebf4ff] text-[#0b4a7d] border border-[#cbe1fa]">
                                 <span>Kab/Kota: <strong>{{ $this->namaKabkotaTerpilih }}</strong></span>
-                                <button type="button" wire:click="hapusFilterKabkota" class="text-teal-400 hover:text-teal-700">
+                                <button type="button" wire:click="hapusFilterKabkota" class="text-[#0b4a7d]/60 hover:text-[#0b4a7d]">
                                     <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
                                 </button>
                             </span>
                         @endif
 
                         @if ($filterKecamatan && $this->namaKecamatanTerpilih)
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#ebf4ff] text-[#0b4a7d] border border-[#cbe1fa]">
                                 <span>Kecamatan: <strong>{{ $this->namaKecamatanTerpilih }}</strong></span>
-                                <button type="button" wire:click="hapusFilterKecamatan" class="text-teal-400 hover:text-teal-700">
+                                <button type="button" wire:click="hapusFilterKecamatan" class="text-[#0b4a7d]/60 hover:text-[#0b4a7d]">
                                     <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
                                 </button>
                             </span>
                         @endif
 
                         @if ($filterDesa && $this->namaDesaTerpilih)
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#ebf4ff] text-[#0b4a7d] border border-[#cbe1fa]">
                                 <span>Desa: <strong>{{ $this->namaDesaTerpilih }}</strong></span>
-                                <button type="button" wire:click="hapusFilterDesa" class="text-teal-400 hover:text-teal-700">
+                                <button type="button" wire:click="hapusFilterDesa" class="text-[#0b4a7d]/60 hover:text-[#0b4a7d]">
                                     <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
                                 </button>
                             </span>
                         @endif
 
                         @if ($filterRw && $this->namaRwTerpilih)
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#ebf4ff] text-[#0b4a7d] border border-[#cbe1fa]">
                                 <span>RW: <strong>{{ $this->namaRwTerpilih }}</strong></span>
-                                <button type="button" wire:click="hapusFilterRw" class="text-teal-400 hover:text-teal-700">
+                                <button type="button" wire:click="hapusFilterRw" class="text-[#0b4a7d]/60 hover:text-[#0b4a7d]">
                                     <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
                                 </button>
                             </span>
                         @endif
 
                         @if ($filterRt && $this->namaRtTerpilih)
-                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#ebf4ff] text-[#0b4a7d] border border-[#cbe1fa]">
                                 <span>RT: <strong>{{ $this->namaRtTerpilih }}</strong></span>
-                                <button type="button" wire:click="hapusFilterRt" class="text-teal-400 hover:text-teal-700">
+                                <button type="button" wire:click="hapusFilterRt" class="text-[#0b4a7d]/60 hover:text-[#0b4a7d]">
                                     <x-filament::icon icon="heroicon-m-x-mark" class="h-3.5 w-3.5" />
                                 </button>
                             </span>

@@ -15,10 +15,10 @@
 
     <div class="space-y-6" x-data="{ tampilRincian: true }">
         {{-- Kartu Konfirmasi Utama --}}
-        <div class="rounded-2xl border {{ $sudahDitolak ? 'border-rose-200' : 'border-emerald-200' }} bg-white shadow-sm overflow-hidden">
-            <div class="bg-gradient-to-r {{ $sudahDitolak ? 'from-rose-50 via-red-50/70 to-white border-rose-100' : 'from-emerald-50 via-teal-50/70 to-white border-emerald-100' }} px-6 py-6 border-b">
+        <div class="rounded-2xl border {{ $sudahDitolak ? 'border-rose-200' : 'border-[#cbe1fa]' }} bg-white shadow-sm overflow-hidden">
+            <div class="bg-gradient-to-r {{ $sudahDitolak ? 'from-rose-50 via-red-50/70 to-white border-rose-100' : 'from-[#ebf4ff] via-[#f4f9ff] to-white border-[#dce8f6]' }} px-6 py-6 border-b">
                 <div class="flex flex-col sm:flex-row sm:items-start gap-4">
-                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl {{ $sudahDitolak ? 'bg-rose-600' : 'bg-emerald-600' }} text-white shadow-sm">
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl {{ $sudahDitolak ? 'bg-rose-600' : 'bg-[#0b4a7d]' }} text-white shadow-sm">
                         @if($sudahDitolak)
                             <svg class="h-7 w-7" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />

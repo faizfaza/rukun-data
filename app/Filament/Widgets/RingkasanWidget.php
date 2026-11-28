@@ -289,52 +289,41 @@ class RingkasanWidget extends Widget
                     'category' => 'Kependudukan',
                     'label' => 'Total Keluarga',
                     'value' => $keluarga,
-                    'description' => $wilayahDesc,
+                    'description' => 'Kartu Keluarga terdaftar',
                     'icon' => 'heroicon-o-home-modern',
                     'url' => route('filament.admin.pages.jelajah'),
                 ],
                 [
                     'key' => 'warga_menetap',
                     'category' => 'Kependudukan',
-                    'label' => 'Warga Menetap (Aktif)',
+                    'label' => 'Warga Aktif',
                     'value' => $wargaMenetap,
                     'description' => $anggota > 0
-                        ? round($wargaMenetap / $anggota * 100).'% dari total '.$anggota.' jiwa'
+                        ? round($wargaMenetap / $anggota * 100).'% dari '.$anggota.' warga'
                         : 'Belum ada data',
                     'icon' => 'heroicon-o-users',
                     'url' => route('filament.admin.pages.jelajah'),
                 ],
                 [
+                    'key' => 'usia_produktif',
+                    'category' => 'Demografi',
+                    'label' => 'Usia Produktif',
+                    'value' => $produktif,
+                    'description' => $anggota > 0
+                        ? round($produktif / $anggota * 100).'% rentang 18–59 tahun'
+                        : 'Rentang 18–59 tahun',
+                    'icon' => 'heroicon-o-briefcase',
+                    'url' => route('filament.admin.pages.jelajah'),
+                ],
+                [
                     'key' => 'warga_pindah',
-                    'category' => 'Mutasi Warga',
+                    'category' => 'Mutasi',
                     'label' => 'Warga Pindah',
                     'value' => $wargaPindah,
                     'description' => $wargaPindah > 0
-                        ? $wargaPindah.' jiwa tercatat pindah domisili'
-                        : 'Tidak ada mutasi pindah',
+                        ? $wargaPindah.' warga pindah domisili'
+                        : 'Belum ada mutasi pindah',
                     'icon' => 'heroicon-o-arrow-right-start-on-rectangle',
-                    'url' => route('filament.admin.pages.jelajah'),
-                ],
-                [
-                    'key' => 'kepala_perempuan',
-                    'category' => 'Sosial & Usia',
-                    'label' => 'Kepala Keluarga Perempuan',
-                    'value' => $kepalaPerempuan,
-                    'description' => $kepala > 0
-                        ? round($kepalaPerempuan / $kepala * 100).'% dari '.$kepala.' kepala keluarga'
-                        : 'Belum ada data',
-                    'icon' => 'heroicon-o-user',
-                    'url' => route('filament.admin.pages.jelajah'),
-                ],
-                [
-                    'key' => 'usia_produktif',
-                    'category' => 'Sosial & Usia',
-                    'label' => 'Usia Produktif (18–59)',
-                    'value' => $produktif,
-                    'description' => $anggota > 0
-                        ? round($produktif / $anggota * 100).'% dari total anggota'
-                        : 'Belum ada data',
-                    'icon' => 'heroicon-o-briefcase',
                     'url' => route('filament.admin.pages.jelajah'),
                 ],
             ],

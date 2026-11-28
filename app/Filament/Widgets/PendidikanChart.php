@@ -14,11 +14,11 @@ class PendidikanChart extends ChartWidget
 {
     use MemoizesDetailItems;
 
-    protected static ?int $sort = 5;
+    protected static ?int $sort = 4;
 
     protected static bool $isLazy = false;
 
-    protected ?string $maxHeight = '17rem';
+    protected ?string $maxHeight = '16rem';
 
     protected ?string $heading = 'Sebaran Pendidikan';
 
@@ -39,7 +39,7 @@ class PendidikanChart extends ChartWidget
      */
     protected function hitungDetailItems(): array
     {
-        $palette = ['#0f766e', '#14b8a6', '#2dd4bf', '#5eead4', '#99f6e4', '#cbd6d3', '#8a9996'];
+        $palette = ['#0b4a7d', '#1d6fa5', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#64748b'];
 
         $rows = Anggota::query()
             ->selectRaw('anggota.id_pendidikan as id_ref, ref_pendidikan.nama as label, COUNT(*) as total')
@@ -69,21 +69,22 @@ class PendidikanChart extends ChartWidget
             'datasets' => [[
                 'label' => 'Anggota',
                 'data' => array_column($items, 'count'),
-                'backgroundColor' => ['#0f766e', '#14b8a6', '#2dd4bf', '#5eead4', '#99f6e4', '#cbd6d3', '#8a9996'],
+                'backgroundColor' => ['#0b4a7d', '#1d6fa5', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#64748b'],
+                'borderRadius' => 6,
+                'maxBarThickness' => 28,
             ]],
             'labels' => array_column($items, 'label'),
         ];
     }
 
-    // DESIGN.md §7.5: judul memuat jumlah total, mengikuti wilayah pengguna.
     public function getHeading(): string|Htmlable|null
     {
-        return 'Sebaran Pendidikan ('.Anggota::query()->count().')';
+        return 'Sebaran Pendidikan';
     }
 
     public function getDescription(): string|Htmlable|null
     {
-        return WilayahScope::label(auth()->user());
+        return 'Tingkat pendidikan terakhir warga';
     }
 
     // DESIGN.md §7.5: grafik batang horizontal.

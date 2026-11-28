@@ -34,7 +34,7 @@
                 type="button"
                 x-data
                 @click="$dispatch('buka-detail-dashboard', { tipe: @js($detailType), kunci: 'semua' })"
-                class="text-xs font-semibold text-teal-600 hover:text-teal-700 hover:underline transition cursor-pointer"
+                class="text-xs font-semibold text-[#0b4a7d] hover:text-[#093c66] hover:underline transition cursor-pointer"
             >
                 Lihat rincian &rarr;
             </button>

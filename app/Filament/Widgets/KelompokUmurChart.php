@@ -17,7 +17,7 @@ class KelompokUmurChart extends ChartWidget
 
     protected static bool $isLazy = false;
 
-    protected ?string $maxHeight = '17rem';
+    protected ?string $maxHeight = '16rem';
 
     protected ?string $heading = 'Sebaran Kelompok Umur';
 
@@ -39,7 +39,7 @@ class KelompokUmurChart extends ChartWidget
     protected function hitungDetailItems(): array
     {
         $buckets = RingkasanWidget::umurBuckets();
-        $palette = ['#0f766e', '#14b8a6', '#5eead4', '#99f6e4', '#cbd6d3'];
+        $palette = ['#0b4a7d', '#1d6fa5', '#2563eb', '#60a5fa', '#93c5fd'];
         $now = now();
 
         // Satu query agregat untuk semua kelompok umur (sebelumnya satu COUNT per kelompok).
@@ -83,9 +83,7 @@ class KelompokUmurChart extends ChartWidget
         $data = [];
 
         foreach ($items as $item) {
-            // Nilai ikut ditampilkan pada label agar kategori 0 tetap terbaca,
-            // tanpa menambah dependensi data-labels.
-            $labels[] = $item['label'].' · '.$item['count'];
+            $labels[] = $item['label'];
             $data[] = $item['count'];
         }
 
@@ -93,21 +91,22 @@ class KelompokUmurChart extends ChartWidget
             'datasets' => [[
                 'label' => 'Anggota',
                 'data' => $data,
-                'backgroundColor' => ['#0f766e', '#14b8a6', '#5eead4', '#99f6e4', '#cbd6d3'],
+                'backgroundColor' => ['#0b4a7d', '#1d6fa5', '#2563eb', '#60a5fa', '#93c5fd'],
+                'borderRadius' => 6,
+                'maxBarThickness' => 28,
             ]],
             'labels' => $labels,
         ];
     }
 
-    // DESIGN.md §7.5: judul memuat jumlah total, mengikuti wilayah pengguna.
     public function getHeading(): string|Htmlable|null
     {
-        return 'Sebaran Kelompok Umur ('.Anggota::query()->count().')';
+        return 'Sebaran Kelompok Umur';
     }
 
     public function getDescription(): string|Htmlable|null
     {
-        return WilayahScope::label(auth()->user()).' · Nilai 0 tetap ditampilkan pada label.';
+        return 'Distribusi warga berdasarkan rentang usia';
     }
 
     protected function getOptions(): array

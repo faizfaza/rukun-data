@@ -1,25 +1,77 @@
 <x-filament-widgets::widget>
-    <div class="fi-wi-stats-overview">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+    @php
+        $userBanner = auth()->user();
+        $cakupanBanner = \App\Support\WilayahScope::label($userBanner);
+        $urlKelolaWarga = \App\Filament\Pages\JelajahWilayah::getUrl();
+        $urlValidasiBanner = \App\Filament\Resources\ValidasiPerubahanResource::getUrl('index');
+    @endphp
+
+    <div class="fi-wi-stats-overview rd-dash-stack">
+        {{-- Banner Biru Navy RUKUNDATA (selaras dengan tombol Demo RUKUNDATA) --}}
+        <div
+            class="rounded-2xl px-6 py-5 text-white shadow-[0_8px_24px_-10px_rgba(11,74,125,0.45)] flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+            style="background: linear-gradient(135deg, #0b4a7d 0%, #073257 100%);"
+        >
+            <div class="min-w-0">
+                <div class="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-semibold text-[#dbeafe] mb-2">
+                    <span class="h-1.5 w-1.5 rounded-full bg-[#38bdf8]"></span>
+                    <span>RUKUNDATA · {{ $userBanner?->role?->label() ?? 'Panel Kependudukan' }}</span>
+                </div>
+                <h2 class="text-lg sm:text-xl font-bold tracking-tight text-white">
+                    Ringkasan Data Kependudukan
+                </h2>
+                <p class="mt-1 text-xs sm:text-sm text-[#dbeafe]/90 leading-relaxed">
+                    {{ $cakupanBanner }}
+                </p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+                <a
+                    href="{{ $urlKelolaWarga }}"
+                    wire:navigate
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-xs sm:text-sm font-semibold text-[#0b4a7d] shadow-xs hover:bg-[#ebf4ff] active:bg-[#dbeafe] transition"
+                >
+                    <span>Kelola Warga</span>
+                    <span>&rarr;</span>
+                </a>
+                <a
+                    href="{{ $urlValidasiBanner }}"
+                    wire:navigate
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-white/25 bg-white/10 px-4 py-2 text-xs sm:text-sm font-semibold text-white hover:bg-white/20 transition"
+                >
+                    <span>Validasi &amp; Persetujuan</span>
+                </a>
+            </div>
+        </div>
+
+        {{-- Kategori 1: Ringkasan Utama (4 KPI Prioritas) --}}
+        <section class="rd-dash-section">
+            <div class="rd-dash-section-head">
+                <span class="rd-dash-eyebrow">Ringkasan Utama</span>
+                <h3 class="rd-dash-section-title">Statistik Kependudukan Prioritas</h3>
+                <p class="rd-dash-section-sub">Angka inti keluarga terdaftar, warga aktif, usia produktif, dan mutasi pindah.</p>
+            </div>
+
+            <div class="rd-dash-grid-4">
             @foreach ($stats as $stat)
                 <button
                     type="button"
                     wire:click="bukaDetail('ringkasan', '{{ $stat['key'] }}')"
-                    class="rd-stat-card group text-left w-full block p-4 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-teal-300 transition-all duration-200 cursor-pointer"
+                    class="rd-stat-card group text-left w-full block p-4 rounded-2xl bg-white border border-[#e5ecf4] border-t-2 border-t-[#0b4a7d]/80 shadow-sm hover:shadow-md hover:border-[#0b4a7d] transition-all duration-200 cursor-pointer"
                     wire:key="stat-{{ $stat['key'] }}"
                 >
                     <div class="flex items-center justify-between gap-2 mb-2">
-                        <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 group-hover:bg-teal-50 group-hover:text-teal-700 transition">
+                        <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#ebf4ff] text-[#0b4a7d] group-hover:bg-[#0b4a7d] group-hover:text-white transition">
                             {{ $stat['category'] ?? 'Ringkasan' }}
                         </span>
-                        <div class="rd-stat-icon text-gray-400 group-hover:text-teal-600 transition">
+                        <div class="rd-stat-icon text-[#0b4a7d] bg-[#ebf4ff] group-hover:bg-[#0b4a7d] group-hover:text-white transition">
                             {{ \Filament\Support\generate_icon_html($stat['icon']) }}
                         </div>
                     </div>
 
                     <div>
                         <span
-                            class="rd-stat-value text-2xl font-bold text-gray-900 group-hover:text-teal-700 transition"
+                            class="rd-stat-value text-2xl font-bold text-[#0f2643] group-hover:text-[#0b4a7d] transition"
                             x-data="{
                                 value: 0,
                                 target: {{ (int) $stat['value'] }},
@@ -48,16 +100,17 @@
                             x-text="new Intl.NumberFormat('id-ID').format(value)"
                         >{{ number_format($stat['value'], 0, ',', '.') }}</span>
 
-                        <div class="rd-stat-label text-xs font-semibold text-gray-700 mt-1">{{ $stat['label'] }}</div>
-                        <div class="rd-stat-desc text-[11px] text-gray-500 mt-0.5 line-clamp-1">{{ $stat['description'] }}</div>
-                        <div class="mt-2.5 flex items-center gap-1 text-[11px] font-medium text-teal-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div class="rd-stat-label text-xs font-semibold text-[#0f2643] mt-1">{{ $stat['label'] }}</div>
+                        <div class="rd-stat-desc text-[11px] text-[#64748b] mt-0.5 line-clamp-1">{{ $stat['description'] }}</div>
+                        <div class="mt-2.5 flex items-center gap-1 text-[11px] font-semibold text-[#0b4a7d] opacity-0 group-hover:opacity-100 transition-opacity">
                             <span>Lihat rincian</span>
                             <span>&rarr;</span>
                         </div>
                     </div>
                 </button>
             @endforeach
-        </div>
+            </div>
+        </section>
 
         @if ($detail !== null)
             <div

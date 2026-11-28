@@ -14,11 +14,11 @@ class JenisKelaminChart extends ChartWidget
 {
     use MemoizesDetailItems;
 
-    protected static ?int $sort = 4;
+    protected static ?int $sort = 3;
 
     protected static bool $isLazy = false;
 
-    protected ?string $maxHeight = '18rem';
+    protected ?string $maxHeight = '16rem';
 
     protected ?string $heading = 'Komposisi Jenis Kelamin';
 
@@ -45,8 +45,8 @@ class JenisKelaminChart extends ChartWidget
             ->pluck('total', 'jenis_kelamin');
 
         return [
-            ['key' => 'L', 'label' => 'Laki-laki', 'count' => (int) ($rows['L'] ?? 0), 'color' => '#0f766e'],
-            ['key' => 'P', 'label' => 'Perempuan', 'count' => (int) ($rows['P'] ?? 0), 'color' => '#d97706'],
+            ['key' => 'L', 'label' => 'Laki-laki', 'count' => (int) ($rows['L'] ?? 0), 'color' => '#0b4a7d'],
+            ['key' => 'P', 'label' => 'Perempuan', 'count' => (int) ($rows['P'] ?? 0), 'color' => '#f59e0b'],
         ];
     }
 
@@ -71,12 +71,12 @@ class JenisKelaminChart extends ChartWidget
 
     public function getHeading(): string|Htmlable|null
     {
-        return 'Komposisi Jenis Kelamin ('.Anggota::query()->count().')';
+        return 'Komposisi Jenis Kelamin';
     }
 
     public function getDescription(): string|Htmlable|null
     {
-        return WilayahScope::label(auth()->user());
+        return 'Perbandingan warga laki-laki dan perempuan';
     }
 
     protected function getOptions(): array

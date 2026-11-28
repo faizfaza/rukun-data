@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Pages\Auth\Login;
+use App\Filament\Pages\Dashboard;
 use App\Filament\Widgets\JenisKelaminChart;
 use App\Filament\Widgets\KelompokUmurChart;
 use App\Filament\Widgets\KeluargaPerRtChart;
@@ -14,7 +15,6 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -36,9 +36,9 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->databaseTransactions()
             ->path('admin')
-            ->brandName('Rukun Data')
+            ->brandName('RUKUNDATA')
             ->brandLogo(fn () => view('filament.brand'))
-            ->brandLogoHeight('2rem')
+            ->brandLogoHeight('2.75rem')
             ->login(Login::class)
             // Mode SPA: pindah menu hanya menukar konten (wire:navigate) tanpa
             // memuat ulang CSS/JS. Halaman cetak tetap dibuka sebagai halaman penuh.
@@ -57,23 +57,35 @@ class AdminPanelProvider extends PanelProvider
             ->maxContentWidth(Width::Full)
             ->darkMode(false)
             ->colors([
-                // Palet Civic Teal — satu aksen utama, netral hangat, status ringkas.
+                // Palet Resmi RUKUNDATA (rukundata.id): Navy Blue utama + aksen hijau daun & netral bersih.
                 'primary' => [
-                    50 => '#f0fdfa',
-                    100 => '#ccfbf1',
-                    200 => '#99f6e4',
-                    300 => '#5eead4',
-                    400 => '#2dd4bf',
-                    500 => '#14b8a6',
-                    600 => '#0f766e',
-                    700 => '#115e59',
-                    800 => '#134e4a',
-                    900 => '#0f2e2b',
-                    950 => '#08201e',
+                    50 => '#eff6ff',
+                    100 => '#dbeafe',
+                    200 => '#bfdbfe',
+                    300 => '#93c5fd',
+                    400 => '#3b82f6',
+                    500 => '#135c99',
+                    600 => '#0b4a7d',
+                    700 => '#093c66',
+                    800 => '#0a3154',
+                    900 => '#0c2742',
+                    950 => '#071a2e',
                 ],
-                'gray' => Color::Stone,
-                'info' => Color::Cyan,
-                'success' => Color::Green,
+                'gray' => Color::Slate,
+                'info' => Color::Sky,
+                'success' => [
+                    50 => '#f0fdf4',
+                    100 => '#dcfce7',
+                    200 => '#bbf7d0',
+                    300 => '#86efac',
+                    400 => '#4ade80',
+                    500 => '#2e8b22',
+                    600 => '#25751b',
+                    700 => '#1f5f16',
+                    800 => '#194c13',
+                    900 => '#143f10',
+                    950 => '#092307',
+                ],
                 'warning' => Color::Amber,
                 'danger' => Color::Red,
             ])
@@ -84,13 +96,14 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
-                // Kartu ringkasan angka di atas, lalu grafik komposisi dan sebaran.
+                // Alur jelas dari atas ke bawah:
+                // 1. Ringkasan Utama -> 2. Demografi (Umur & Gender) -> 3. Sosial-Ekonomi (Pendidikan & Pekerjaan) -> 4. Sebaran Wilayah (Keluarga per RT)
                 RingkasanWidget::class,
                 KelompokUmurChart::class,
-                KeluargaPerRtChart::class,
                 JenisKelaminChart::class,
                 PendidikanChart::class,
                 PekerjaanChart::class,
+                KeluargaPerRtChart::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -114,6 +127,10 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 PanelsRenderHook::USER_MENU_BEFORE,
                 fn () => view('filament.hooks.topbar-validasi-notifikasi'),
+            )
+            ->renderHook(
+                PanelsRenderHook::USER_MENU_PROFILE_AFTER,
+                fn () => view('filament.hooks.user-menu-jabatan'),
             )
             ->renderHook(
                 PanelsRenderHook::BODY_END,

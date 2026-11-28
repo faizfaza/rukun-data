@@ -15,11 +15,13 @@ class KeluargaPerRtChart extends ChartWidget
 {
     use MemoizesDetailItems;
 
-    protected static ?int $sort = 3;
+    protected static ?int $sort = 6;
+
+    protected int|string|array $columnSpan = 'full';
 
     protected static bool $isLazy = false;
 
-    protected ?string $maxHeight = '17rem';
+    protected ?string $maxHeight = '14rem';
 
     protected ?string $heading = 'Keluarga per RT';
 
@@ -40,7 +42,7 @@ class KeluargaPerRtChart extends ChartWidget
      */
     protected function hitungDetailItems(): array
     {
-        $palette = ['#0f766e', '#14b8a6', '#2dd4bf', '#5eead4', '#99f6e4', '#cbd6d3', '#8a9996', '#b8c4c1'];
+        $palette = ['#0b4a7d', '#1d6fa5', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#475569', '#94a3b8'];
 
         $rows = Keluarga::query()
             ->selectRaw('keluarga.id_wilayah, COUNT(*) as total')
@@ -106,7 +108,9 @@ class KeluargaPerRtChart extends ChartWidget
             'datasets' => [[
                 'label' => 'Keluarga',
                 'data' => array_column($items, 'count'),
-                'backgroundColor' => ['#0f766e', '#14b8a6', '#2dd4bf', '#5eead4', '#99f6e4', '#cbd6d3', '#8a9996', '#b8c4c1'],
+                'backgroundColor' => ['#0b4a7d', '#1d6fa5', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#475569', '#94a3b8'],
+                'borderRadius' => 6,
+                'maxBarThickness' => 30,
             ]],
             'labels' => array_column($items, 'label'),
         ];
@@ -143,15 +147,12 @@ class KeluargaPerRtChart extends ChartWidget
 
     public function getHeading(): string|Htmlable|null
     {
-        $rtCount = Keluarga::query()->distinct()->count('id_wilayah');
-        $keluargaCount = Keluarga::query()->count();
-
-        return 'Keluarga per RT · '.$rtCount.' RT · '.$keluargaCount.' keluarga';
+        return 'Sebaran Keluarga per RT';
     }
 
     public function getDescription(): string|Htmlable|null
     {
-        return WilayahScope::label(auth()->user());
+        return 'Jumlah Kartu Keluarga terdaftar di setiap RT';
     }
 
     protected function getOptions(): array

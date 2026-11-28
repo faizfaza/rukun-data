@@ -12,26 +12,29 @@
     @endphp
 
     <div class="space-y-5">
-        {{-- Bar Ringkasan & Aksi Cepat --}}
-        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-                <div class="text-sm font-semibold text-gray-900">
+        {{-- Banner Biru Tua RUKUNDATA & Aksi Cepat --}}
+        <div
+            class="rounded-2xl px-6 py-5 text-white shadow-[0_8px_24px_-10px_rgba(11,74,125,0.45)] flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+            style="background: linear-gradient(135deg, #0b4a7d 0%, #073257 100%);"
+        >
+            <div class="min-w-0">
+                <div class="text-base font-bold text-white">
                     Pantau Hasil Verifikasi, Antrean Persetujuan, &amp; Perubahan Data KK
                 </div>
-                <div class="text-xs text-gray-500 mt-0.5">
+                <div class="text-xs sm:text-sm text-[#dbeafe] mt-1">
                     @if($unreadHasilCount > 0)
-                        <span class="font-semibold text-emerald-700">{{ $unreadHasilCount }} notifikasi hasil verifikasi belum dibaca</span> ·
+                        <span class="font-semibold text-white">{{ $unreadHasilCount }} notifikasi hasil verifikasi belum dibaca</span> ·
                     @endif
                     {{ $pendingAntreanCount }} antrean menunggu proses
                 </div>
             </div>
 
-            <div class="flex flex-wrap items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2.5 shrink-0">
                 @if($unreadHasilCount > 0)
                     <button
                         type="button"
                         wire:click="tandaiSemuaDibaca"
-                        class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 transition cursor-pointer"
+                        class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-white/30 bg-white/15 px-3.5 text-xs font-semibold text-white shadow-sm hover:bg-white/25 transition whitespace-nowrap cursor-pointer"
                     >
                         Tandai Semua Dibaca
                     </button>
@@ -40,24 +43,25 @@
                 <a
                     href="{{ $urlValidasi }}"
                     wire:navigate
-                    class="inline-flex items-center gap-1.5 rounded-lg bg-teal-700 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-teal-800 transition"
+                    class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-white px-4 text-xs font-semibold text-[#0b4a7d] shadow-md hover:bg-[#ebf4ff] transition whitespace-nowrap"
                 >
-                    Halaman Validasi &amp; Persetujuan →
+                    <span>Halaman Validasi &amp; Persetujuan</span>
+                    <span>&rarr;</span>
                 </a>
             </div>
         </div>
 
         {{-- Navigasi Tab --}}
-        <div class="rounded-xl border border-gray-200 bg-white shadow-xs overflow-hidden">
-            <div class="border-b border-gray-200 bg-gray-50/80 px-4 py-3 flex flex-wrap items-center gap-2">
+        <div class="rounded-xl border border-[#d3dfec] bg-white shadow-[0_3px_10px_-2px_rgba(15,38,67,0.08)] overflow-hidden">
+            <div class="border-b border-[#d3dfec] bg-[#e6eef7] px-4 py-3 flex flex-wrap items-center gap-2.5">
                 <button
                     type="button"
                     wire:click="setTab('hasil')"
-                    class="inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition cursor-pointer {{ $this->tab === 'hasil' ? 'bg-teal-700 text-white shadow-xs' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50' }}"
+                    class="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition cursor-pointer {{ $this->tab === 'hasil' ? 'bg-[#0b4a7d] text-white shadow-md' : 'bg-white text-[#0f2643] border border-[#b4c7dc] shadow-sm hover:bg-[#f0f7ff] hover:text-[#0b4a7d]' }}"
                 >
                     <span>Hasil &amp; Status Verifikasi</span>
                     @if($unreadHasilCount > 0)
-                        <span class="inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold {{ $this->tab === 'hasil' ? 'bg-emerald-400 text-teal-950' : 'bg-emerald-600 text-white' }}">
+                        <span class="inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold {{ $this->tab === 'hasil' ? 'bg-white/20 text-white' : 'bg-[#0b4a7d] text-white' }}">
                             {{ $unreadHasilCount }} baru
                         </span>
                     @endif
@@ -66,10 +70,10 @@
                 <button
                     type="button"
                     wire:click="setTab('antrean')"
-                    class="inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition cursor-pointer {{ $this->tab === 'antrean' ? 'bg-teal-700 text-white shadow-xs' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50' }}"
+                    class="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition cursor-pointer {{ $this->tab === 'antrean' ? 'bg-[#0b4a7d] text-white shadow-md' : 'bg-white text-[#0f2643] border border-[#b4c7dc] shadow-sm hover:bg-[#f0f7ff] hover:text-[#0b4a7d]' }}"
                 >
                     <span>Antrean Approval</span>
-                    <span class="inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold {{ $this->tab === 'antrean' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800' }}">
+                    <span class="inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold {{ $this->tab === 'antrean' ? 'bg-white/20 text-white' : 'bg-[#ebf4ff] text-[#0b4a7d]' }}">
                         {{ $pendingAntreanCount }}
                     </span>
                 </button>
@@ -77,10 +81,10 @@
                 <button
                     type="button"
                     wire:click="setTab('log_kk')"
-                    class="inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition cursor-pointer {{ $this->tab === 'log_kk' ? 'bg-teal-700 text-white shadow-xs' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50' }}"
+                    class="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition cursor-pointer {{ $this->tab === 'log_kk' ? 'bg-[#0b4a7d] text-white shadow-md' : 'bg-white text-[#0f2643] border border-[#b4c7dc] shadow-sm hover:bg-[#f0f7ff] hover:text-[#0b4a7d]' }}"
                 >
                     <span>Perubahan Data KK</span>
-                    <span class="inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold {{ $this->tab === 'log_kk' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-700' }}">
+                    <span class="inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold {{ $this->tab === 'log_kk' ? 'bg-white/20 text-white' : 'bg-[#ebf4ff] text-[#0b4a7d]' }}">
                         {{ $logPerubahanKk->count() }}
                     </span>
                 </button>
@@ -93,41 +97,41 @@
                         @php
                             $isUnread = ! $notif->sudahDibaca();
                             $badgeClass = match ($notif->jenis) {
-                                \App\Models\NotifikasiValidasi::JENIS_DISETUJUI_DESA => 'bg-emerald-100 text-emerald-800 border-emerald-200',
-                                \App\Models\NotifikasiValidasi::JENIS_DISETUJUI_RW => 'bg-sky-100 text-sky-800 border-sky-200',
-                                \App\Models\NotifikasiValidasi::JENIS_SIAP_DISAHKAN_DESA => 'bg-amber-100 text-amber-800 border-amber-200',
+                                \App\Models\NotifikasiValidasi::JENIS_DISETUJUI_DESA => 'bg-[#ebf4ff] text-[#0b4a7d] border-[#cbe1fa]',
+                                \App\Models\NotifikasiValidasi::JENIS_DISETUJUI_RW => 'bg-sky-50 text-sky-800 border-sky-200',
+                                \App\Models\NotifikasiValidasi::JENIS_SIAP_DISAHKAN_DESA => 'bg-[#f0f7ff] text-[#0b4a7d] border-[#93c5fd]',
                                 \App\Models\NotifikasiValidasi::JENIS_DITOLAK_RW,
-                                \App\Models\NotifikasiValidasi::JENIS_DITOLAK_DESA => 'bg-rose-100 text-rose-800 border-rose-200',
-                                default => 'bg-gray-100 text-gray-700 border-gray-200',
+                                \App\Models\NotifikasiValidasi::JENIS_DITOLAK_DESA => 'bg-rose-50 text-rose-800 border-rose-200',
+                                default => 'bg-slate-100 text-slate-700 border-slate-200',
                             };
                         @endphp
                         <a
                             href="{{ route('notifikasi-validasi.buka', $notif) }}"
-                            class="block px-5 py-4 hover:bg-teal-50/40 transition {{ $isUnread ? 'bg-emerald-50/40' : 'bg-white' }}"
+                            class="block px-5 py-4 hover:bg-[#f0f7ff] transition {{ $isUnread ? 'bg-[#f4f9ff]' : 'bg-white' }}"
                         >
                             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                                 <div class="flex flex-wrap items-center gap-2">
                                     @if($isUnread)
-                                        <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 shrink-0" title="Belum dibaca"></span>
+                                        <span class="h-2.5 w-2.5 rounded-full bg-[#0b4a7d] shrink-0" title="Belum dibaca"></span>
                                     @endif
-                                    <span class="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-bold {{ $badgeClass }}">
+                                    <span class="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold {{ $badgeClass }}">
                                         {{ $notif->judul }}
                                     </span>
                                     @if($isUnread)
-                                        <span class="text-[11px] font-semibold text-emerald-700">· Baru</span>
+                                        <span class="text-[11px] font-semibold text-[#0b4a7d]">· Baru</span>
                                     @endif
                                 </div>
-                                <span class="text-xs text-gray-400">
+                                <span class="text-xs text-[#64748b] shrink-0">
                                     {{ $notif->created_at?->format('d M Y H:i') }} ({{ $notif->created_at?->diffForHumans() }})
                                 </span>
                             </div>
 
-                            <p class="mt-2 text-sm text-gray-700 leading-relaxed">
+                            <p class="mt-2 text-sm text-[#334155] leading-relaxed">
                                 {{ $notif->pesan }}
                             </p>
 
                             <div class="mt-2.5 flex items-center justify-end">
-                                <span class="text-xs font-semibold text-teal-700">Lihat Rincian &amp; Status →</span>
+                                <span class="text-xs font-semibold text-[#0b4a7d]">Lihat Rincian &amp; Status →</span>
                             </div>
                         </a>
                     @empty
@@ -195,7 +199,7 @@
                                 <a
                                     href="{{ $urlValidasi }}"
                                     wire:navigate
-                                    class="text-xs font-semibold text-teal-700 hover:text-teal-900"
+                                    class="text-xs font-semibold text-[#0b4a7d] hover:text-[#093c66]"
                                 >
                                     Proses di Halaman Validasi →
                                 </a>

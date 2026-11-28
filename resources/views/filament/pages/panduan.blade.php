@@ -13,16 +13,16 @@
                 </div>
 
                 <div class="space-y-2">
-                    <h2 x-ref="judul" tabindex="-1" class="w-fit text-2xl font-bold tracking-tight text-gray-950">{{ $judul }}</h2>
-                    <p class="text-sm leading-6 text-gray-700">{{ $isi }}</p>
+                    <h2 x-ref="judul" tabindex="-1" class="w-fit text-2xl font-bold tracking-tight text-[#0f2643] focus:outline-none">{{ $judul }}</h2>
+                    <p class="text-sm leading-6 text-[#334155]">{{ $isi }}</p>
                     @if ($langkah === 0 && ! $sudahSelesai)
-                        <p class="text-sm text-gray-600">Tuntaskan panduan ini untuk mulai memakai panel.</p>
+                        <p class="text-sm text-[#475569]">Tuntaskan panduan ini untuk mulai memakai panel.</p>
                     @endif
                 </div>
 
                 @if ($langkah === 1 || $langkah === 2)
-                    <div class="space-y-4 rounded-lg border border-teal-200 bg-teal-50 p-4 text-sm">
-                        <p class="font-semibold text-gray-950">Latihan dengan data fiktif</p>
+                    <div class="space-y-4 rounded-xl border border-[#cbe1fa] bg-[#f0f7ff] p-4 text-sm">
+                        <p class="font-semibold text-[#0f2643]">Latihan dengan data fiktif</p>
                         @if ($langkah === 1)
                             <div x-show="!contoh">
                                 <x-filament::button type="button" color="gray" x-on:click="contoh = true; $nextTick(() => $refs.coba.focus())">
@@ -69,12 +69,12 @@
                                 </x-filament::button>
                             </form>
                         @endif
-                        <p class="font-medium text-teal-900" role="status"
+                        <p class="font-medium text-[#0b4a7d]" role="status"
                             x-text="hasil ? @js($langkah === 1 ? 'Keluarga Ari Contoh ditemukan di RT 01.' : 'Latihan selesai. Data contoh tidak disimpan.') : ''"></p>
                     </div>
                 @endif
 
-                <div class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-4">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-t border-[#d3dfec] pt-4">
                     <div class="flex flex-wrap items-center gap-3">
                         @if ($langkah > 0)
                             <x-filament::button type="button" color="gray" wire:click="kembali" wire:loading.attr="disabled">
@@ -82,7 +82,7 @@
                             </x-filament::button>
                         @endif
                         @if ($sudahSelesai)
-                            <x-filament::link :href="\Filament\Pages\Dashboard::getUrl()">Keluar dari panduan</x-filament::link>
+                            <x-filament::link :href="\Filament\Pages\Dashboard::getUrl()" class="!text-[#0b4a7d] hover:!text-[#093c66] font-semibold">Keluar dari panduan</x-filament::link>
                         @endif
                     </div>
                     <x-filament::button type="button" wire:click="lanjut" wire:loading.attr="disabled">

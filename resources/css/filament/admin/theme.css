@@ -319,9 +319,15 @@ html.fi {
 body:has([data-panduan-sorot="jelajah"]) .fi-sidebar-item-btn[href$="/jelajah"],
 body:has([data-panduan-sorot="wilayah"]) .fi-sidebar-item-btn[href$="/wilayah"],
 body:has([data-panduan-sorot="pengguna"]) .fi-sidebar-item-btn[href$="/pengguna"] {
-    outline: 2px solid var(--rukun-teal-light, #2dd4bf);
+    outline: 2px solid #0b4a7d;
     outline-offset: -2px;
-    background-color: rgb(45 212 191 / 0.14);
+    background-color: #ebf4ff;
+    color: #0b4a7d;
+}
+
+.fi-link.fi-color-primary,
+.fi-link.fi-color-primary .fi-link-label {
+    color: var(--rd-primary) !important;
 }
 
 .panduan-progress {
@@ -340,11 +346,11 @@ body:has([data-panduan-sorot="pengguna"]) .fi-sidebar-item-btn[href$="/pengguna"
 }
 
 .panduan-progress::-webkit-progress-value {
-    background-color: var(--rukun-teal, #0f766e);
+    background-color: #0b4a7d;
 }
 
 .panduan-progress::-moz-progress-bar {
-    background-color: var(--rukun-teal, #0f766e);
+    background-color: #0b4a7d;
 }
 
 .fi-sidebar .fi-user-menu-trigger:hover {
